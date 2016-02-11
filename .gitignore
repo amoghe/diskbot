@@ -1,0 +1,5 @@
+# Ignore (intermediate) tarballs
+*.tgz
+
+# Ignore vmdk
+*.vmdk
