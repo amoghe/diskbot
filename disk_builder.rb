@@ -160,21 +160,11 @@ class DiskBuilder < BaseBuilder
 					execute!("cp -r /usr/lib/grub/#{GRUB_ARCHITECTURE} #{grub_dir}")
 				end
 
-				device_map_filepath = File.join(grub_dir, 'device.map')
 				load_cfg_filepath   = File.join(grub_dir, 'load.cfg')
 				grub_cfg_filepath   = File.join(grub_dir, 'grub.cfg')
 
 				core_img_filepath   = File.join(arch_dir, 'core.img')
 				boot_img_filepath   = File.join(arch_dir, 'boot.img')
-
-				# Setup device.map
-				info("creating device map")
-				Tempfile.open('device.map') do |f|
-					f.puts("(hd0) #{dev}")
-
-					f.sync; f.fsync # flush ruby buffers and OS buffers
-					execute!("cp #{f.path} #{device_map_filepath}")
-				end
 
 				# Setup load.cfg
 				info("creating load.cfg")
@@ -232,7 +222,7 @@ class DiskBuilder < BaseBuilder
 					"--boot-image=#{GRUB_ARCHITECTURE}/boot.img"    ,
 					"--core-image=#{GRUB_ARCHITECTURE}/core.img"    ,
 					"--directory=#{grub_dir} " ,
-					"--device-map=#{device_map_filepath} " ,
+					"--device-map=/dev/null " ,
 					verbose ? '--verbose' : '' ,
 					'--skip-fs-probe'          ,
 					"#{dev}"                   ,
