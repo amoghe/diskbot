@@ -59,7 +59,7 @@ class DebootstrapBuilder < BaseBuilder
 		end
 
 	end
-	
+
 	##
 	# Add a dummy fstab that is read during debootstap to determine which fsck
 	# to add into the initrd. Without this, fsck.ext4 is excluded, leading to a
@@ -75,7 +75,7 @@ class DebootstrapBuilder < BaseBuilder
 		execute!("echo #{line1} | sudo tee #{File.join(tempdir, '/etc/fstab')}")
 		execute!("echo #{line2} | sudo tee #{File.join(tempdir, '/etc/fstab')}")
 	end
-	
+
 	##
 	# Remove the dummy fstab we wrote during debootstrap
 	#
@@ -83,7 +83,7 @@ class DebootstrapBuilder < BaseBuilder
 		notice("Removing dummy fstab")
 		execute!("rm #{File.join(tempdir, "/etc/fstab")}")
 	end
-	
+
 	##
 	# Run debootstrap
 	#
@@ -95,7 +95,7 @@ class DebootstrapBuilder < BaseBuilder
 			cached_pkgs_opt = ""
 			info("No cached debootstrap packages found.")
 		end
-	
+
 		notice('Running debootstrap')
 		execute!(["debootstrap",
 			verbose ? "--verbose" : "",
@@ -107,7 +107,7 @@ class DebootstrapBuilder < BaseBuilder
 			@archive_url,
 		].join(" "))
 	end
-	
+
 	##
 	# Add appropriate entries in the apt sources.list file
 	#
@@ -197,7 +197,7 @@ class DebootstrapBuilder < BaseBuilder
 
 		notice("debootstrap packages cached at:" + cached_pkgs_tarball)
 	end
-	
+
 	##
 	# Package the rootfs (in the dir argument) (tar.gz)
 	#
