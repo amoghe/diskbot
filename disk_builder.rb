@@ -29,7 +29,7 @@ class DiskBuilder < BaseBuilder
 	PARTITIONS = [
 			OpenStruct.new(:type  => :grub,
 				:label => GRUB_PARTITION_LABEL,
-				:size  => 64),
+				:size  => 32),
 			OpenStruct.new(:type  => :os,
 				:label => OS_PARTITION_LABEL,
 				:size  => 4 * 1024),
@@ -114,7 +114,7 @@ class DiskBuilder < BaseBuilder
 		execute!("parted -s #{dev} mklabel #{PARTITION_TABLE_TYPE}")
 
 		start_size    = 1 # MB
-		end_size      = 0 # MB
+		end_size      = 1 # MB
 
 		PARTITIONS.each_with_index do |part, index|
 			end_size += part.size
@@ -138,6 +138,12 @@ class DiskBuilder < BaseBuilder
 	# Install the grub bootloader.
 	#
 	def install_grub
+
+		if not Dir.exists?("/usr/lib/grub/#{GRUB_ARCHITECTURE}")
+			raise RuntimeError, 'Cannot perform GRUB2 installation without the '\
+			"necessary files (Missing dir #{"/usr/lib/grub/#{GRUB_ARCHITECTURE}"})"
+		end
+
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
@@ -146,27 +152,27 @@ class DiskBuilder < BaseBuilder
 
 				boot_dir = File.join(mountdir, 'boot')
 				grub_dir = File.join(boot_dir, 'grub')
-				arch_dir = File.join(grub_dir, GRUB_ARCHITECTURE)
+				mods_dir = File.join(grub_dir, GRUB_ARCHITECTURE)
+				imgs_dir = File.join(grub_dir, 'imgs')
 
 				execute!("mkdir -p #{boot_dir}")
 				execute!("mkdir -p #{grub_dir}")
-				execute!("mkdir -p #{arch_dir}")
-
-				# Copy grub files
-				if not Dir.exists?("/usr/lib/grub/#{GRUB_ARCHITECTURE}")
-					raise RuntimeError, 'Cannot perform GRUB installation without the '\
-					"necessary files (Missing: #{"/usr/lib/grub/#{GRUB_ARCHITECTURE}"})"
-				else
-					execute!("cp -r /usr/lib/grub/#{GRUB_ARCHITECTURE} #{grub_dir}")
-				end
+				execute!("mkdir -p #{mods_dir}")
+				execute!("mkdir -p #{imgs_dir}")
 
 				load_cfg_filepath   = File.join(grub_dir, 'load.cfg')
 				grub_cfg_filepath   = File.join(grub_dir, 'grub.cfg')
 
-				core_img_filepath   = File.join(arch_dir, 'core.img')
-				boot_img_filepath   = File.join(arch_dir, 'boot.img')
+				core_img_filepath   = File.join(imgs_dir, 'core.img')
+				boot_img_filepath   = File.join(imgs_dir, 'boot.img')
 
-				# Setup load.cfg
+				# Copy boot.img where it'll be picked up for burning to the disk
+				execute!("cp /usr/lib/grub/#{GRUB_ARCHITECTURE}/boot.img #{boot_img_filepath}")
+
+				# Copy modules where grub expects to find them
+				execute!("cp /usr/lib/grub/#{GRUB_ARCHITECTURE}/* #{mods_dir}")
+
+				# Setup load.cfg (to be embedded in core.img)
 				info("creating load.cfg")
 				Tempfile.open('load.cfg') do |f|
 					f.puts("search.fs_label #{GRUB_PARTITION_LABEL} root")
@@ -219,10 +225,10 @@ class DiskBuilder < BaseBuilder
 
 				execute!([
 					'grub-bios-setup'          ,
-					"--boot-image=#{GRUB_ARCHITECTURE}/boot.img"    ,
-					"--core-image=#{GRUB_ARCHITECTURE}/core.img"    ,
-					"--directory=#{grub_dir} " ,
-					"--device-map=/dev/null " ,
+					"--boot-image=boot.img"    ,
+					"--core-image=core.img"    ,
+					"--directory=#{imgs_dir} " , # i.e. boot.img & core.img are in this dir
+					"--device-map=/dev/null "  ,
 					verbose ? '--verbose' : '' ,
 					'--skip-fs-probe'          ,
 					"#{dev}"                   ,
