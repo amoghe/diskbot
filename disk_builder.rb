@@ -144,11 +144,23 @@ class DiskBuilder < BaseBuilder
 			"necessary files (Missing dir #{"/usr/lib/grub/#{GRUB_ARCHITECTURE}"})"
 		end
 
+		this_dir = File.dirname(__FILE__)
+		temp_dir = File.join(this_dir, "tmp")
+
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
 				grub_part = File.join('/dev/disk/by-label', GRUB_PARTITION_LABEL)
 				execute!("mount #{grub_part} #{mountdir}")
+
+				# Download grub-common and grub-pc-bin instead of relying on the host (on which
+				# we're executing) to have these installed.
+				# TODO: this still assumes we're on a Debian/Ubuntu host (relies on dpkg and apt-get)
+				info("Downloading grub tools (grub-common, grub-pc-bin)")
+				execute!("mkdir -p #{temp_dir}", false)
+				execute!("cd #{temp_dir} && apt-get download grub-common", false)
+				execute!("cd #{temp_dir} && apt-get download grub-pc-bin", false)
+				Dir.glob("#{temp_dir}/*.deb") { |pkg| execute!("dpkg-deb --extract #{pkg} #{temp_dir}") }
 
 				boot_dir = File.join(mountdir, 'boot')
 				grub_dir = File.join(boot_dir, 'grub')
@@ -167,10 +179,10 @@ class DiskBuilder < BaseBuilder
 				boot_img_filepath   = File.join(imgs_dir, 'boot.img')
 
 				# Copy boot.img where it'll be picked up for burning to the disk
-				execute!("cp /usr/lib/grub/#{GRUB_ARCHITECTURE}/boot.img #{boot_img_filepath}")
-
+				execute!("cp #{temp_dir}/usr/lib/grub/#{GRUB_ARCHITECTURE}/boot.img #{boot_img_filepath}")
 				# Copy modules where grub expects to find them
-				execute!("cp /usr/lib/grub/#{GRUB_ARCHITECTURE}/* #{mods_dir}")
+				execute!("cp #{temp_dir}/usr/lib/grub/#{GRUB_ARCHITECTURE}/*.mod #{mods_dir}")
+				execute!("cp #{temp_dir}/usr/lib/grub/#{GRUB_ARCHITECTURE}/*.lst #{mods_dir}")
 
 				# Setup load.cfg (to be embedded in core.img)
 				info("creating load.cfg")
@@ -209,7 +221,8 @@ class DiskBuilder < BaseBuilder
 				end
 
 				# create core.img with the embedded configutation file (load.cfg)
-				execute!([ 'grub-mkimage'		,
+				info("Creating core.img")
+				execute!([ "#{temp_dir}/usr/bin/grub-mkimage",
 					"--config=#{load_cfg_filepath}"	,
 					"--output=#{core_img_filepath}"	,
 					# Different prefix command (unlike load.cfg)
@@ -223,8 +236,10 @@ class DiskBuilder < BaseBuilder
 					raise RuntimeError, 'No file output from grub-mkimage'
 				end
 
+				# Burn boot.img (and core.img) to the disk
+				info("Burning boot.img and core.img to the disk")
 				execute!([
-					'grub-bios-setup'          ,
+					"#{temp_dir}/usr/lib/grub/#{GRUB_ARCHITECTURE}/grub-bios-setup",
 					"--boot-image=boot.img"    ,
 					"--core-image=core.img"    ,
 					"--directory=#{imgs_dir} " , # i.e. boot.img & core.img are in this dir
@@ -237,6 +252,7 @@ class DiskBuilder < BaseBuilder
 			ensure
 				# Always unmount it
 				execute!("umount #{mountdir}")
+				execute!("rm -rf #{temp_dir}")
 			end
 		end
 
