@@ -24,20 +24,22 @@ class BaseBuilder
 	def blue(line)   ; "\033[0;34m#{line}\033[0m" ; end
 	def magenta(line); "\033[0;35m#{line}\033[0m" ; end
 
-
 	def info(line)
-		msg = STDOUT.tty? ? green(line) : msg
-		puts msg
+		line = "[*] #{line}"
+		line = STDOUT.tty? ? green(line) : line
+		puts line
 	end
 
 	def warn(line)
-		msg = STDOUT.tty? ? red(line) : msg
-		puts msg
+		line = "[X] #{line}"
+		line = STDOUT.tty? ? red(line) : line
+		puts "\n" + line
 	end
 
 	def notice(line)
-		msg = STDOUT.tty? ? blue(line) : msg
-		puts msg
+		line = "[!] #{line}"
+		line = STDOUT.tty? ? blue(line) : line
+		puts "\n" + line
 	end
 
 	def header(line)
