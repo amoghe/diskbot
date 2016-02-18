@@ -1,8 +1,9 @@
 # Rake tasks for building the various parts of the system
 #
 
-require_relative 'disk_builder'
 require_relative 'debootstrap_builder'
+require_relative 'disk_builder_bios'
+require_relative 'disk_builder_uefi'
 
 namespace :build do
 
@@ -18,8 +19,13 @@ namespace :build do
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file DiskBuilder::VMDK_FILE_PATH => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH do
-		DiskBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH, ENV.has_key?('VERBOSE')).build
+	file UefiDiskBuilder::UEFI_VMDK_FILE_PATH => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH do
+		UefiDiskBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH, ENV.has_key?('VERBOSE')).build
+	end
+
+	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
+	file BiosDiskBuilder::BIOS_VMDK_FILE_PATH => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH do
+		BiosDiskBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH, ENV.has_key?('VERBOSE')).build
 	end
 
 	#
@@ -37,8 +43,11 @@ namespace :build do
 	#
 	# Build disk.
 	#
-	desc 'Build a bootable disk using the debootstrap rootfs image (env vars: VERBOSE)'
-	task :disk => DiskBuilder::VMDK_FILE_PATH
+	desc 'Build a bootable UEFI disk using the debootstrap rootfs image (env vars: VERBOSE)'
+	task :uefi_disk => UefiDiskBuilder::UEFI_VMDK_FILE_PATH
+
+	desc 'Build a bootable BIOS disk using the debootstrap rootfs image (env vars: VERBOSE)'
+	task :bios_disk => BiosDiskBuilder::BIOS_VMDK_FILE_PATH
 end
 
 # Clean tasks
@@ -54,8 +63,16 @@ namespace :clean do
 		sh("rm -f #{DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH}")
 	end
 
-	desc "Clean the disk file"
-	task :disk do
-		sh("rm -f #{DiskBuilder::VMDK_FILE_PATH}")
+	desc "Clean the UEFI disk file"
+	task :uefi_disk do
+		sh("rm -f #{UefiDiskBuilder::UEFI_VMDK_FILE_PATH}")
 	end
+
+	desc "Clean the BIOS disk file"
+	task :bios_disk do
+		sh("rm -f #{BiosDiskBuilder::BIOS_VMDK_FILE_PATH}")
+	end
+
+	desc "Clean all disk files"
+	task :disks => [:uefi_disk, :bios_disk]
 end
