@@ -183,17 +183,6 @@ class DiskBuilder < BaseBuilder
 					"-C #{mountdir} ."
 				].join(' '))
 
-				fsopts = "defaults,errors=remount-ro"
-				fstab_contents = \
-				[
-					['# <filesystem>'             , '<mnt>', '<type>', '<opts>', '<dump>', '<pass>'],
-					["LABEL=#{OS_PARTITION_LABEL}", '/'    , 'ext4'  , fsopts  , '0'     , '1'     ],
-				].reduce('') { |memo, line_tokens|
-					memo << line_tokens.join("\t")
-					memo << "\n"
-					memo
-				}
-
 				# write out the fstab file
 				fstab_file_path = File.join(mountdir, '/etc/fstab')
 				Tempfile.open('fstab') do |f|
@@ -252,6 +241,24 @@ class DiskBuilder < BaseBuilder
 			"search.fs_label #{GRUB_PARTITION_LABEL} root",
 			"set prefix=($root)/boot/grub",
 		].join("\n")
+	end
+
+	##
+	#
+	#
+	def fstab_contents
+
+		fsopts = "defaults,errors=remount-ro"
+
+		[
+			['# <filesystem>'               , '<mnt>', '<type>', '<opts>', '<dump>', '<pass>'],
+			["LABEL=#{OS_PARTITION_LABEL}"  , '/'    , 'ext4'  , fsopts  , '0'     , '1'     ],
+			["LABEL=#{GRUB_PARTITION_LABEL}", '/grub', 'ext4'  , fsopts  , '0'     , '1'     ],
+		].reduce('') { |memo, line_tokens|
+			memo << line_tokens.join("\t")
+			memo << "\n"
+			memo
+		}
 	end
 
 
