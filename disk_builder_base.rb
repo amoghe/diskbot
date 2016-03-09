@@ -213,7 +213,7 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	#
+	# Contents of grub.cfg
 	#
 	def grub_cfg_contents
 		kernel_opts_normal = [ 'ro', 'quiet', 'splash' ].join(' ')
@@ -234,7 +234,7 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	#
+	# Contents of load.cfg
 	#
 	def load_cfg_contents
 		[
@@ -244,7 +244,7 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	#
+	# Contents of the fstab file
 	#
 	def fstab_contents
 
