@@ -132,6 +132,8 @@ class BiosDiskBuilder < DiskBuilder
 	#
 	def create_vmdk
 		self.convert_to_vmdk(BIOS_VMDK_FILE_PATH)
+
+		self.save_raw_image(BIOS_VMDK_FILE_PATH + ".raw")
 	end
 
 	##

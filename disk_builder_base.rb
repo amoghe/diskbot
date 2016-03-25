@@ -26,7 +26,7 @@ class DiskBuilder < BaseBuilder
 	OS_PARTITION = OpenStruct.new(
 		:label => OS_PARTITION_LABEL,
 		:fs    => "ext4",
-		:size  => 4 * 1024,
+		:size  => (0.75 * 1024.0).to_i,
 	)
 
 	# Partitions needed for the system, irrespective of the hardware we're booting on
@@ -39,7 +39,7 @@ class DiskBuilder < BaseBuilder
 	attr_reader :image_tarball_path
 	attr_reader :verbose
 
-	def initialize(image_path, verbose)
+	def initialize(image_path, verbose=false)
 		raise ArgumentError, "Invalid image specified: #{image_path}" unless File.exists?(image_path)
 
 		@image_tarball_path = image_path
@@ -71,8 +71,18 @@ class DiskBuilder < BaseBuilder
 		raise RuntimeError, "Not implemented in base class"
 	end
 
+	##
+	#
+	#
 	def create_vmdk
 		raise RuntimeError, "Not implemented in base class"
+	end
+
+	##
+	# Total disk size we need to allocate
+	#
+	def total_disk_size
+		COMMON_PARTITIONS.inject(0) { |memo, elem| memo + elem.size } + additional_disk_size
 	end
 
 	##
@@ -98,6 +108,7 @@ class DiskBuilder < BaseBuilder
 
 		notice("Creating vmdk from raw disk")
 		self.create_vmdk
+
 	ensure
 		notice("Deleting loop disk (and its backing file)")
 		self.delete_loopback_disk
@@ -107,10 +118,8 @@ class DiskBuilder < BaseBuilder
 	# Create the loopback disk device on which we'll first install the image
 	#
 	def create_loopback_disk
-		total_disk_size = COMMON_PARTITIONS.inject(0) { |memo, elem| memo + elem.size } + additional_disk_size
-
 		@tempfile = "/tmp/tempdisk_#{Time.now.to_i}"
-		execute!("fallocate -l #{total_disk_size.to_i/1024}G #{@tempfile}", false)
+		execute!("fallocate -l #{total_disk_size}MiB #{@tempfile}", false)
 
 		output, _, stat = Open3.capture3("sudo losetup --find")
 		raise RuntimeError, 'Failed to find loop device' unless stat.success?
@@ -127,7 +136,7 @@ class DiskBuilder < BaseBuilder
 	#
 	def delete_loopback_disk
 		execute!("losetup -d #{dev}") if dev && dev.length > 0
-		execute!("rm -f #{@tempfile}") if @tempfile && @tempfile.length > 0
+		execute!("rm -f #{@tempfile}", false) if @tempfile && @tempfile.length > 0
 	end
 
 	##
@@ -213,6 +222,18 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
+	# Save the raw disk image we just manipulated.
+	# Not really meant to be called from anywhere, but is useful for when you
+	# want to save off the raw image at the end of the build
+	#
+	def save_raw_image(dest)
+		execute!("cp #{@tempfile} #{dest}")
+
+		orig_user = `whoami`.strip
+		execute!("chown #{orig_user} #{dest}")
+	end
+
+	##
 	# Contents of grub.cfg
 	#
 	def grub_cfg_contents
@@ -260,6 +281,5 @@ class DiskBuilder < BaseBuilder
 			memo
 		}
 	end
-
 
 end
