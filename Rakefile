@@ -43,13 +43,13 @@ namespace :build do
 	task :rootfs => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH
 
 	#
-	# Build disk.
+	# Build disks.
 	#
 	desc 'Build a bootable UEFI disk using the debootstrap rootfs image (env vars: VERBOSE)'
-	task :uefi_disk => UefiDiskBuilder::UEFI_VMDK_FILE_PATH
+	task :vmdk_uefi => UefiDiskBuilder::UEFI_VMDK_FILE_PATH
 
 	desc 'Build a bootable BIOS disk using the debootstrap rootfs image (env vars: VERBOSE)'
-	task :bios_disk => BiosDiskBuilder::BIOS_VMDK_FILE_PATH
+	task :vmdk_bios => BiosDiskBuilder::BIOS_VMDK_FILE_PATH
 end
 
 # Clean tasks
@@ -66,12 +66,12 @@ namespace :clean do
 	end
 
 	desc "Clean the UEFI disk file"
-	task :uefi_disk do
+	task :vmdk_uefi do
 		sh("rm -f #{UefiDiskBuilder::UEFI_VMDK_FILE_PATH}")
 	end
 
 	desc "Clean the BIOS disk file"
-	task :bios_disk do
+	task :vmdk_bios do
 		sh("rm -f #{BiosDiskBuilder::BIOS_VMDK_FILE_PATH}")
 	end
 
