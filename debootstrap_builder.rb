@@ -7,7 +7,6 @@ class DebootstrapBuilder < BaseBuilder
 
 	# Additional pacakge we'd like in the rootfs so that its usable
 	ADDON_PKGS = [
-		'linux-image-amd64'  ,
 		'isc-dhcp-client'    , # dhcp
 		'net-tools'          , # ifconfig
 		'ifupdown'           , # 'ifup, ifdown, /etc/network/interfaces'
@@ -15,6 +14,11 @@ class DebootstrapBuilder < BaseBuilder
 		'sudo'               ,
 		'zile'               ,
 	]
+
+	KERNEL_PKG_NAME = {
+		"ubuntu" => "linux-image-generic",
+		"debian" => "linux-image-amd64",
+	}
 
 	UBUNTU_APT_ARCHIVE_URL = "http://archive.ubuntu.com/ubuntu"
 	DEBIAN_APT_ARCHIVE_URL = "http://debian.osuosl.org/debian"
@@ -85,6 +89,17 @@ class DebootstrapBuilder < BaseBuilder
 	end
 
 	##
+	#
+	#
+	def all_addon_pkgs()
+		all_pkgs = []
+		all_pkgs = all_pkgs + ADDON_PKGS
+		all_pkgs = all_pkgs + [KERNEL_PKG_NAME[@distro]]
+
+		return all_pkgs
+	end
+
+	##
 	# Run debootstrap
 	#
 	def run_debootstrap(tempdir)
@@ -100,8 +115,9 @@ class DebootstrapBuilder < BaseBuilder
 		execute!(["debootstrap",
 			verbose ? "--verbose" : "",
 			"--variant minbase",
+			"--components main,universe",
 			cached_pkgs_opt,
-			"--include #{ADDON_PKGS.join(",")}",
+			"--include #{all_addon_pkgs.join(",")}",
 			@flavor,
 			tempdir,
 			@archive_url,
@@ -187,7 +203,8 @@ class DebootstrapBuilder < BaseBuilder
 			execute!(["debootstrap",
 				verbose ? "--verbose" : "",
 				"--variant minbase",
-				"--include #{ADDON_PKGS.join(",")}",
+				"--components main,universe",
+				"--include #{all_addon_pkgs.join(",")}",
 				"--make-tarball #{cached_pkgs_tarball}",
 				@flavor,
 				workdir,
