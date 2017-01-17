@@ -1,3 +1,4 @@
+require 'json'
 require 'open3'
 require 'pp'
 
@@ -14,7 +15,10 @@ class DebootstrapBuilder < BaseBuilder
 		'sudo'               ,
 		'zile'               ,
 	]
+	# Additional packages that the user may specify without modifying code
+	ADDON_PKGS_FILE = 'custom_pkgs.json'
 
+	# What the kernel pks is called in each distro
 	KERNEL_PKG_NAME = {
 		"ubuntu" => "linux-image-generic",
 		"debian" => "linux-image-amd64",
@@ -89,14 +93,14 @@ class DebootstrapBuilder < BaseBuilder
 	end
 
 	##
-	#
+	# Return all additional pkgs to be installed in the rootfs
 	#
 	def all_addon_pkgs()
 		all_pkgs = []
 		all_pkgs = all_pkgs + ADDON_PKGS
 		all_pkgs = all_pkgs + [KERNEL_PKG_NAME[@distro]]
-
-		return all_pkgs
+		all_pkgs = all_pkgs + JSON.parse(File.read(ADDON_PKGS_FILE)) if File.exists?(ADDON_PKGS_FILE)
+		return all_pkgs.uniq
 	end
 
 	##
@@ -190,14 +194,14 @@ class DebootstrapBuilder < BaseBuilder
 		cached_pkgs_tarball = CACHED_DEBOOTSTRAP_PKGS_PATH
 
 		notice("Ensuring old packages tarball does not exist")
-		execute!("rm -f #{cached_pkgs_tarball}")
+		execute!("rm -f #{cached_pkgs_tarball}", false)
 
 		self.on_mounted_tmpfs do |tempdir|
                         # create a work dir in the tempdir, because debootstrap wants to delete its work dir when
                         # it finishes, but the tempdir is owned by root.
 
                         workdir = File.join(tempdir, "work")
-                        execute!("mkdir -p #{workdir}")
+			Dir.mkdir(workdir)
 
 			notice("Invoking debootstrap to create new cached packages tarball")
 			execute!(["debootstrap",
@@ -209,7 +213,7 @@ class DebootstrapBuilder < BaseBuilder
 				@flavor,
 				workdir,
 				@archive_url,
-			].join(" "))
+			].join(" "), false)
 		end
 
 		notice("debootstrap packages cached at:" + cached_pkgs_tarball)
