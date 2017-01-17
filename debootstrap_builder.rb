@@ -197,10 +197,10 @@ class DebootstrapBuilder < BaseBuilder
 		execute!("rm -f #{cached_pkgs_tarball}", false)
 
 		self.on_mounted_tmpfs do |tempdir|
-                        # create a work dir in the tempdir, because debootstrap wants to delete its work dir when
-                        # it finishes, but the tempdir is owned by root.
+			# create a work dir in the tempdir, because debootstrap wants to delete its work dir when
+			# it finishes, but the tempdir is owned by root.
 
-                        workdir = File.join(tempdir, "work")
+			workdir = File.join(tempdir, "work")
 			Dir.mkdir(workdir)
 
 			notice("Invoking debootstrap to create new cached packages tarball")
