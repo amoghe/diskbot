@@ -1,14 +1,12 @@
 require 'tmpdir'
 require 'rake/file_utils'
 
-# Base class from which other 'builder' classes can inherit common functionality.
+#
+# Printer
+#
+class PrettyPrinter
 
-class BaseBuilder
-
-	# Mix in FileUtils which have been monkeypatched by rake
-	include FileUtils
-
-	#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	# Print prettier messages.
 	#
 
@@ -25,19 +23,19 @@ class BaseBuilder
 	def magenta(line); "\033[0;35m#{line}\033[0m" ; end
 
 	def info(line)
-		line = "[*] #{line}"
+		line = "[INFO] #{line}"
 		line = STDOUT.tty? ? green(line) : line
 		puts line
 	end
 
 	def warn(line)
-		line = "[X] #{line}"
+		line = "[WARN] #{line}"
 		line = STDOUT.tty? ? red(line) : line
 		puts "\n" + line
 	end
 
 	def notice(line)
-		line = "[!] #{line}"
+		line = "[NOTI] #{line}"
 		line = STDOUT.tty? ? blue(line) : line
 		puts "\n" + line
 	end
@@ -51,13 +49,24 @@ class BaseBuilder
 		puts ""
 	end
 
-	#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+end
+
+#
+# Base class from which other 'builder' classes can inherit common functionality
+#
+class BaseBuilder < PrettyPrinter
+
+	# Mix in FileUtils which have been monkeypatched by rake
+	include FileUtils
+
+	#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	# Helper module to house functions needed during the build.
 	#
 
 	# Execute a command using rake 'sh'
 	def execute!(cmd, sudo=true, verbose=true)
 		cmd = sudo ? "sudo #{cmd}" : cmd
+    # `echo '#{cmd}' >> ./cmds.txt` if sudo
 		# puts cmd if verbose
 		# `#{cmd}`
 		sh cmd, verbose: verbose do |ok, res|
@@ -77,7 +86,27 @@ class BaseBuilder
 		true
 	end
 
-	def on_mounted_tmpfs(size='1G')
+	def on_mounted_tmpfs(size='1G', &block)
+		return unless block
+		if Dir.exists?(ENV.fetch('TMPFSDIR', '/foobarbaz'))
+			self.__on_custom_tmpfs(ENV.fetch('TMPFSDIR', '/foobarbaz'), &block)
+		else
+			self.__on_tmpfs(size, &block)
+		end
+	end
+
+
+	def __on_custom_tmpfs(dir, &block)
+		# We're already on a tmpfs, so no need to mount tmpfs on a
+		# temp dir, just use the dir instead.
+		notice("Using #{dir} for tmpfs")
+		block.call(dir) if block
+	ensure
+		# clean up before we return
+		execute!("rm -rf #{dir}/*", true)
+	end
+
+	def __on_tmpfs(size='1G', &block)
 		Dir.mktmpdir do |tempdir|
 			begin
 				notice('Mounting tmpfs')
