@@ -18,15 +18,15 @@ class DiskBuilder < BaseBuilder
 	OS_PARTITION_LABEL        = "OS"
 
 	GRUB_PARTITION = OpenStruct.new(
-		:label => GRUB_PARTITION_LABEL,
-		:fs    => "ext4",
-		:size  => 32,
+		:label    => GRUB_PARTITION_LABEL,
+		:fs       => "ext4",
+		:size_mb  => 32,
 	)
 
 	OS_PARTITION = OpenStruct.new(
-		:label => OS_PARTITION_LABEL,
-		:fs    => "ext4",
-		:size  => (0.75 * 1024.0).to_i,
+		:label    => OS_PARTITION_LABEL,
+		:fs       => "ext4",
+		:size_mb  => 768, # 0.75 * 1024
 	)
 
 	# Partitions needed for the system, irrespective of the hardware we're booting on
@@ -82,7 +82,7 @@ class DiskBuilder < BaseBuilder
 	# Total disk size we need to allocate
 	#
 	def total_disk_size
-		COMMON_PARTITIONS.inject(0) { |memo, elem| memo + elem.size } + additional_disk_size
+		COMMON_PARTITIONS.inject(0) { |memo, elem| memo + elem.size_mb } + additional_disk_size
 	end
 
 	##

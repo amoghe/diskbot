@@ -9,14 +9,17 @@ class UefiDiskBuilder < DiskBuilder
 
 	GRUB_ARCHITECTURE    = 'x86_64-efi'
 
-	ESP_PARTITION_SIZE   = 1024 # MB, (fat32 cant format <512MB)
-	ESP_PARTITION_LABEL  = 'ESP'
+	ESP_PARTITION        = OpenStruct.new(
+		:label    => "ESP",
+		:fs       => "fat32",
+		:size_mb  => 1024,
+	)
 
 	##
 	# Additional disk size we need (over and above the common partitions)
 	#
 	def additional_disk_size
-		ESP_PARTITION_SIZE
+		ESP_PARTITION.size_mb
 	end
 
 	##
@@ -28,20 +31,20 @@ class UefiDiskBuilder < DiskBuilder
 		execute!("parted -s #{dev} mklabel #{PARTITION_TABLE_TYPE}")
 
 		# Reserve a partition on which grub core.img will reside
-		info("Reserving ESP boot partition (fat32, #{ESP_PARTITION_SIZE}MB)")
-		execute!("parted #{dev} mkpart #{ESP_PARTITION_LABEL} fat32 1MB #{ESP_PARTITION_SIZE}MB")
+		info("Reserving ESP boot partition (fat32, #{ESP_PARTITION.size_mb}MB)")
+		execute!("parted #{dev} mkpart #{ESP_PARTITION.label} fat32 1MB #{ESP_PARTITION.size_mb}MB")
 		execute!("parted #{dev} set 1 boot on")
-		execute!("mkfs.fat -F32 -n#{ESP_PARTITION_LABEL} /dev/disk/by-partlabel/#{ESP_PARTITION_LABEL}")
+		execute!("mkfs.fat -F32 -n#{ESP_PARTITION.label} /dev/disk/by-partlabel/#{ESP_PARTITION.label}")
 
-		start_size    = ESP_PARTITION_SIZE
-		end_size      = ESP_PARTITION_SIZE
+		start_size    = ESP_PARTITION.size_mb
+		end_size      = ESP_PARTITION.size_mb
 
 		# Create the remaining partitions
 		COMMON_PARTITIONS.each_with_index do |part, index|
 			start_size = end_size
-			end_size += part.size
+			end_size += part.size_mb
 
-			info("Creating partition #{part.label} (#{part.fs}, #{part.size}MB)")
+			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MB)")
 			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MB #{end_size}MB")
 			execute!("mkfs.#{part.fs} -L \"#{part.label}\" /dev/disk/by-partlabel/#{part.label}")
 		end
@@ -61,7 +64,7 @@ class UefiDiskBuilder < DiskBuilder
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
-				grub_part = File.join('/dev/disk/by-label', ESP_PARTITION_LABEL)
+				grub_part = File.join('/dev/disk/by-label', ESP_PARTITION.label)
 				execute!("mount #{grub_part} #{mountdir}")
 
 				boot_dir = File.join(mountdir, 'EFI', 'BOOT')

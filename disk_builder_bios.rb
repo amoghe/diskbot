@@ -9,13 +9,17 @@ class BiosDiskBuilder < DiskBuilder
 
 	GRUB_ARCHITECTURE    = 'i386-pc' # BIOS
 
-	BIOS_EMBED_PARTITION_SIZE  = 32 # MB
+	BIOS_EMBED_PARTITION = OpenStruct.new(
+		:label    => "BIOS_GRUB",
+		:fs       => "ext4",
+		:size_mb  => 32,
+	)
 
 	##
 	# Additional disk size we need (over and above the common partitions)
 	#
 	def additional_disk_size
-		BIOS_EMBED_PARTITION_SIZE
+		BIOS_EMBED_PARTITION.size_mb
 	end
 
 	##
@@ -27,19 +31,19 @@ class BiosDiskBuilder < DiskBuilder
 		execute!("parted -s #{dev} mklabel #{PARTITION_TABLE_TYPE}")
 
 		# Reserve a partition on which grub core.img will reside
-		info("Reserving BIOS GRUB boot partition (no fs, #{BIOS_EMBED_PARTITION_SIZE}MB)")
-		execute!("parted #{dev} mkpart BIOS_GRUB ext4 1MB #{BIOS_EMBED_PARTITION_SIZE}MB")
+		info("Reserving BIOS GRUB boot partition (no fs, #{BIOS_EMBED_PARTITION.size_mb}MB)")
+		execute!("parted #{dev} mkpart BIOS_GRUB ext4 1MB #{BIOS_EMBED_PARTITION.size_mb}MB")
 		execute!("parted #{dev} set 1 bios_grub on")
 
-		start_size    = BIOS_EMBED_PARTITION_SIZE
-		end_size      = BIOS_EMBED_PARTITION_SIZE
+		start_size    = BIOS_EMBED_PARTITION.size_mb
+		end_size      = BIOS_EMBED_PARTITION.size_mb
 
 		# Create the remaining partitions
 		COMMON_PARTITIONS.each_with_index do |part, index|
 			start_size = end_size
-			end_size += part.size
+			end_size += part.size_mb
 
-			info("Creating partition #{part.label} (#{part.fs}, #{part.size}MB)")
+			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MB)")
 			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MB #{end_size}MB")
 			execute!("mkfs.#{part.fs} -L \"#{part.label}\" /dev/disk/by-partlabel/#{part.label}")
 		end
