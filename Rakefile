@@ -6,18 +6,19 @@ require_relative 'disk_builder_bios'
 require_relative 'disk_builder_uefi'
 
 distro = "ubuntu" # or "debian"
+livecd = false
 
 namespace :build do
 
 	# How to build up a cache of packages needed for speeding up repeated debootstrap runs.
 	file DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DebootstrapBuilder.new(distro, ENV.has_key?('VERBOSE')).create_debootstrap_packages_tarball()
+		DebootstrapBuilder.new(distro, ENV.has_key?('VERBOSE'), livecd).create_debootstrap_packages_tarball()
 	end
 
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
 	file DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH => DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DebootstrapBuilder.new(distro, ENV.has_key?('VERBOSE')).create_debootstrap_rootfs()
+		DebootstrapBuilder.new(distro, ENV.has_key?('VERBOSE'), livecd).create_debootstrap_rootfs()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
@@ -76,5 +77,5 @@ namespace :clean do
 	end
 
 	desc "Clean all disk files"
-	task :disks => [:uefi_disk, :bios_disk]
+	task :disks => [:vmdk_uefi, :vmdk_bios]
 end

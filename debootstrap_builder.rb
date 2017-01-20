@@ -37,13 +37,14 @@ class DebootstrapBuilder < BaseBuilder
 
 	attr_reader :verbose
 
-	def initialize(distro, verbose)
+	def initialize(distro, verbose, islive)
 		@distro  = distro
 		@verbose = !!verbose
+		@islive  = !!islive
 
 		case distro
 		when "ubuntu"
-			@flavor = "trusty"
+			@flavor = "xenial"
 			@archive_url = UBUNTU_APT_ARCHIVE_URL
 		when "debian"
 			@flavor = "jessie"
@@ -96,7 +97,7 @@ class DebootstrapBuilder < BaseBuilder
 	# Return all additional pkgs to be installed in the rootfs
 	#
 	def all_addon_pkgs()
-		all_pkgs = []
+		all_pkgs = @islive ? ["live-boot", "live-boot-initramfs-tools"] : []
 		all_pkgs = all_pkgs + ADDON_PKGS
 		all_pkgs = all_pkgs + [KERNEL_PKG_NAME[@distro]]
 		all_pkgs = all_pkgs + JSON.parse(File.read(ADDON_PKGS_FILE)) if File.exists?(ADDON_PKGS_FILE)
