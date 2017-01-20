@@ -224,6 +224,8 @@ class DebootstrapBuilder < BaseBuilder
 	# Package the rootfs (in the dir argument) (tar.gz)
 	#
 	def package_rootfs(tempdir)
+		notice('Cleaning up packages in the rootfs')
+		execute!("chroot #{tempdir} apt-get clean")
 		notice('Packaging rootfs')
 		execute!(['tar ',
 			'--create',
