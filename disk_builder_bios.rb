@@ -4,51 +4,35 @@ class BiosDiskBuilder < DiskBuilder
 
 	BIOS_VMDK_FILE_NAME  = "bios_disk.vmdk"
 	BIOS_VMDK_FILE_PATH  = File.join(File.expand_path(File.dirname(__FILE__)), BIOS_VMDK_FILE_NAME)
-
-	PARTITION_TABLE_TYPE = 'gpt'
-
-	GRUB_ARCHITECTURE    = 'i386-pc' # BIOS
+	GRUB_ARCHITECTURE    = 'i386-pc' # What grub calls BIOS booting
 
 	BIOS_EMBED_PARTITION = OpenStruct.new(
 		:label    => "BIOS_GRUB",
 		:fs       => "ext4",
+		:size_mb  => 31,
+		:flags    => {'bios_grub' => 'on'},
+	)
+	GRUB_PARTITION = OpenStruct.new(
+		:label    => GRUB_PARTITION_LABEL,
+		:fs       => "ext4",
 		:size_mb  => 32,
+	)
+	OS_PARTITION = OpenStruct.new(
+		:label    => OS_PARTITION_LABEL,
+		:fs       => "ext4",
+		:size_mb  => 768, # 0.75 * 1024
+		:os       => true,
 	)
 
 	##
-	# Additional disk size we need (over and above the common partitions)
+	# Return the array of partitions we'd like to create
 	#
-	def additional_disk_size
-		BIOS_EMBED_PARTITION.size_mb
-	end
-
-	##
-	# Create the partitions on the disk.
-	#
-	def create_partitions
-
-		info("Creating disk with #{PARTITION_TABLE_TYPE} parition table")
-		execute!("parted -s #{dev} mklabel #{PARTITION_TABLE_TYPE}")
-
-		# Reserve a partition on which grub core.img will reside
-		info("Reserving BIOS GRUB boot partition (no fs, #{BIOS_EMBED_PARTITION.size_mb}MB)")
-		execute!("parted #{dev} mkpart BIOS_GRUB ext4 1MB #{BIOS_EMBED_PARTITION.size_mb}MB")
-		execute!("parted #{dev} set 1 bios_grub on")
-
-		start_size    = BIOS_EMBED_PARTITION.size_mb
-		end_size      = BIOS_EMBED_PARTITION.size_mb
-
-		# Create the remaining partitions
-		COMMON_PARTITIONS.each_with_index do |part, index|
-			start_size = end_size
-			end_size += part.size_mb
-
-			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MB)")
-			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MB #{end_size}MB")
-			execute!("mkfs.#{part.fs} -L \"#{part.label}\" /dev/disk/by-partlabel/#{part.label}")
-		end
-
-		nil
+	def partition_layout
+		return [
+			BIOS_EMBED_PARTITION,
+			GRUB_PARTITION      ,
+			OS_PARTITION        ,
+		]
 	end
 
 	##
@@ -132,12 +116,10 @@ class BiosDiskBuilder < DiskBuilder
 	end
 
 	##
-	#
+	# Create the vmdk file from the disk
 	#
 	def create_vmdk
 		self.convert_to_vmdk(BIOS_VMDK_FILE_PATH)
-
-		self.save_raw_image(BIOS_VMDK_FILE_PATH + ".raw")
 	end
 
 	##

@@ -4,52 +4,35 @@ class UefiDiskBuilder < DiskBuilder
 
 	UEFI_VMDK_FILE_NAME  = "uefi_disk.vmdk"
 	UEFI_VMDK_FILE_PATH  = File.join(File.expand_path(File.dirname(__FILE__)), UEFI_VMDK_FILE_NAME)
+	GRUB_ARCHITECTURE    = 'x86_64-efi' # What grub calls UEFI booting
 
-	PARTITION_TABLE_TYPE = 'gpt'
-
-	GRUB_ARCHITECTURE    = 'x86_64-efi'
-
-	ESP_PARTITION        = OpenStruct.new(
+	ESP_PARTITION = OpenStruct.new(
 		:label    => "ESP",
 		:fs       => "fat32",
-		:size_mb  => 1024,
+		:size_mb  => 1023,
+		:flags    => {'boot' => 'on'},
+	)
+	GRUB_PARTITION = OpenStruct.new(
+		:label    => GRUB_PARTITION_LABEL,
+		:fs       => "ext4",
+		:size_mb  => 32,
+	)
+	OS_PARTITION = OpenStruct.new(
+		:label    => OS_PARTITION_LABEL,
+		:fs       => "ext4",
+		:size_mb  => 768, # 0.75 * 1024
+		:os       => true,
 	)
 
 	##
-	# Additional disk size we need (over and above the common partitions)
+	# Return the array of partitions we'd like to create
 	#
-	def additional_disk_size
-		ESP_PARTITION.size_mb
-	end
-
-	##
-	# Create the partitions on the disk.
-	#
-	def create_partitions
-
-		info("Creating disk with #{PARTITION_TABLE_TYPE} parition table")
-		execute!("parted -s #{dev} mklabel #{PARTITION_TABLE_TYPE}")
-
-		# Reserve a partition on which grub core.img will reside
-		info("Reserving ESP boot partition (fat32, #{ESP_PARTITION.size_mb}MB)")
-		execute!("parted #{dev} mkpart #{ESP_PARTITION.label} fat32 1MB #{ESP_PARTITION.size_mb}MB")
-		execute!("parted #{dev} set 1 boot on")
-		execute!("mkfs.fat -F32 -n#{ESP_PARTITION.label} /dev/disk/by-partlabel/#{ESP_PARTITION.label}")
-
-		start_size    = ESP_PARTITION.size_mb
-		end_size      = ESP_PARTITION.size_mb
-
-		# Create the remaining partitions
-		COMMON_PARTITIONS.each_with_index do |part, index|
-			start_size = end_size
-			end_size += part.size_mb
-
-			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MB)")
-			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MB #{end_size}MB")
-			execute!("mkfs.#{part.fs} -L \"#{part.label}\" /dev/disk/by-partlabel/#{part.label}")
-		end
-
-		nil
+	def partition_layout
+		return [
+			ESP_PARTITION ,
+			GRUB_PARTITION,
+			OS_PARTITION  ,
+		]
 	end
 
 	##
@@ -110,7 +93,7 @@ class UefiDiskBuilder < DiskBuilder
 	end
 
 	##
-	#
+	# Create the vmdk file from the disk
 	#
 	def create_vmdk
 		self.convert_to_vmdk(UEFI_VMDK_FILE_PATH)

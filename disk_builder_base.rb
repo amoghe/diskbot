@@ -16,24 +16,8 @@ class DiskBuilder < BaseBuilder
 
 	GRUB_PARTITION_LABEL      = "GRUB"
 	OS_PARTITION_LABEL        = "OS"
-
-	GRUB_PARTITION = OpenStruct.new(
-		:label    => GRUB_PARTITION_LABEL,
-		:fs       => "ext4",
-		:size_mb  => 32,
-	)
-
-	OS_PARTITION = OpenStruct.new(
-		:label    => OS_PARTITION_LABEL,
-		:fs       => "ext4",
-		:size_mb  => 768, # 0.75 * 1024
-	)
-
-	# Partitions needed for the system, irrespective of the hardware we're booting on
-	COMMON_PARTITIONS = [
-		GRUB_PARTITION,
-		OS_PARTITION,
-	]
+	PARTITION_TABLE_TYPE      = 'gpt'
+	FIRST_PARTITION_OFFSET    = 1 # offset from start of disk (in MB)
 
 	attr_reader :dev
 	attr_reader :image_tarball_path
@@ -51,16 +35,10 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	# Expects the hardware specific derivative class to implement this.
+	# Return the array of partitions we'd like to create - derived classes will
+	# define this per their needs.
 	#
-	def additional_disk_size
-		raise RuntimeError, "Not implemented in base class"
-	end
-
-	##
-	# Expects the hardware specific derivative class to implement this.
-	#
-	def create_partitions
+	def partition_layout
 		raise RuntimeError, "Not implemented in base class"
 	end
 
@@ -72,17 +50,52 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	#
+	# Create the vmdk file from the disk
 	#
 	def create_vmdk
 		raise RuntimeError, "Not implemented in base class"
 	end
 
 	##
-	# Total disk size we need to allocate
+	# Total disk size we need to allocate (relies on partition_layout)
 	#
 	def total_disk_size
-		COMMON_PARTITIONS.inject(0) { |memo, elem| memo + elem.size_mb } + additional_disk_size
+		partition_layout.inject(0) { |memo, elem| memo + elem.size_mb } + FIRST_PARTITION_OFFSET
+	end
+
+	##
+	# Expects the hardware specific derivative class to implement this.
+	#
+	def create_partitions
+		info("Creating disk with #{PARTITION_TABLE_TYPE} parition table")
+		execute!("parted -s #{dev} mklabel #{PARTITION_TABLE_TYPE}")
+
+		start_size = FIRST_PARTITION_OFFSET
+		end_size   = FIRST_PARTITION_OFFSET
+
+		# Create the partitions
+		partition_layout.each_with_index do |part, index|
+			start_size = end_size
+			end_size  += part.size_mb
+
+			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MB)")
+			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MB #{end_size}MB")
+
+			(part.flags || {}).each_pair { |k, v|
+				info("Setting partition flag #{k} to #{v}")
+				execute!("parted #{dev} set #{index+1} #{k} #{v}")
+			}
+
+			if part.fs == 'fat32'
+				execute!("mkfs.fat -F32 -n#{part.label} /dev/disk/by-partlabel/#{part.label}")
+			elsif part.fs == 'fat16'
+				execute!("mkfs.fat -F16 -n#{part.label} /dev/disk/by-partlabel/#{part.label}")
+			else
+				execute!("mkfs.#{part.fs} -L \"#{part.label}\" /dev/disk/by-partlabel/#{part.label}")
+			end
+
+		end
+		nil
 	end
 
 	##
