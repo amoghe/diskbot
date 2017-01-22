@@ -40,9 +40,9 @@ class UefiDiskBuilder < DiskBuilder
 	#
 	def install_bootloader
 
-		temp_dir = File.join(File.dirname(__FILE__), "tmp")
-		execute!("mkdir -p #{temp_dir}", false) # Don't be root for this dir
-		self.download_bootloader_tools(temp_dir)
+		tools_dir = File.join(File.dirname(__FILE__), "tmp")
+		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
+		self.download_bootloader_tools(tools_dir)
 
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
@@ -63,10 +63,10 @@ class UefiDiskBuilder < DiskBuilder
 					f.sync; f.fsync # flush ruby buffers and OS buffers
 
 					execute!([
-						"/usr/bin/grub-mkimage",
+						"#{tools_dir}/usr/bin/grub-mkimage",
 						"--config=#{f.path}"	,
 						"--output=#{boot_efi_filepath}"	,
-						"--directory=#{temp_dir}/usr/lib/grub/#{GRUB_ARCHITECTURE}",
+						"--directory=#{tools_dir}/usr/lib/grub/#{GRUB_ARCHITECTURE}",
 						# core.img needs to know which dir to pick up grub.cfg from
 						"--prefix=\"/EFI/BOOT\""	,
 						"--format=#{GRUB_ARCHITECTURE}"	,
@@ -89,7 +89,7 @@ class UefiDiskBuilder < DiskBuilder
 
 	ensure
 		# Clean up temp dir where we downloaded grub tools
-		execute!("rm -rf #{temp_dir}")
+		execute!("rm -rf #{tools_dir}")
 	end
 
 	##
