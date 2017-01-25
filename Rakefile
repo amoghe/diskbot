@@ -8,6 +8,26 @@ require_relative 'disk_builder_uefi'
 distro = "ubuntu" # or "debian"
 livecd = false
 
+PREREQS = {
+	'debootstrap': 'debootstrap',
+	'fallocate':   'util-linux',
+	'losetup':     'mount',
+	'qemu-img':    'qemu-utils',
+}
+
+namespace :prereqs do
+
+	desc "Check prerequisite software is present"
+	task :check do
+		PREREQS.keys.each do |tool|
+			sh("which #{tool}") do |ok, res|
+				puts "Missing #{tool}, Run: 'sudo apt-get install #{PREREQS[tool]}'" if not ok
+			end
+		end
+	end
+
+end
+
 namespace :build do
 
 	# How to build up a cache of packages needed for speeding up repeated debootstrap runs.
