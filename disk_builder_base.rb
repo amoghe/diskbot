@@ -17,7 +17,7 @@ class DiskBuilder < BaseBuilder
 	GRUB_PARTITION_LABEL      = "GRUB"
 	OS_PARTITION_LABEL        = "OS"
 	PARTITION_TABLE_TYPE      = 'gpt'
-	FIRST_PARTITION_OFFSET    = 1 # offset from start of disk (in MB)
+	FIRST_PARTITION_OFFSET    = 1 # offset from start of disk (in MiB)
 
 	attr_reader :dev
 	attr_reader :image_tarball_path
@@ -58,9 +58,12 @@ class DiskBuilder < BaseBuilder
 
 	##
 	# Total disk size we need to allocate (relies on partition_layout)
+	# - all partition sizes + first offest + 1MB for end since parted uses END as inclusive
 	#
 	def total_disk_size
-		partition_layout.inject(0) { |memo, elem| memo + elem.size_mb } + FIRST_PARTITION_OFFSET
+		partition_layout.inject(0) { |memo, elem| memo + elem.size_mb } \
+			+ FIRST_PARTITION_OFFSET \
+			+ 1
 	end
 
 	##
@@ -78,8 +81,8 @@ class DiskBuilder < BaseBuilder
 			start_size = end_size
 			end_size  += part.size_mb
 
-			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MB)")
-			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MB #{end_size}MB")
+			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MiB)")
+			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MiB #{end_size}MiB")
 
 			(part.flags || {}).each_pair { |k, v|
 				info("Setting partition flag #{k} to #{v}")
