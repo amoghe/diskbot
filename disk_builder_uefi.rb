@@ -13,12 +13,13 @@ class UefiDiskBuilder < DiskBuilder
 		:flags    => {'boot' => 'on'},
 	)
 	GRUB_PARTITION = OpenStruct.new(
-		:label    => GRUB_PARTITION_LABEL,
+		:label    => "GRUB_CFG",
 		:fs       => "ext4",
 		:size_mb  => 32,
+		:grub_cfg => true,
 	)
 	OS_PARTITION = OpenStruct.new(
-		:label    => OS_PARTITION_LABEL,
+		:label    => "OS",
 		:fs       => "ext4",
 		:size_mb  => 768, # 0.75 * 1024
 		:os       => true,
@@ -40,7 +41,7 @@ class UefiDiskBuilder < DiskBuilder
 	#
 	def install_bootloader
 
-		tools_dir = File.join(File.dirname(__FILE__), "tmp")
+		tools_dir = File.join(File.dirname(__FILE__), "scratch")
 		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
 		self.download_bootloader_tools(tools_dir)
 

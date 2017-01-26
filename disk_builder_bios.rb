@@ -7,18 +7,19 @@ class BiosDiskBuilder < DiskBuilder
 	GRUB_ARCHITECTURE    = 'i386-pc' # What grub calls BIOS booting
 
 	BIOS_EMBED_PARTITION = OpenStruct.new(
-		:label    => "BIOS_GRUB",
+		:label    => "GRUB_EMBED",
 		:fs       => "ext4",
 		:size_mb  => 31,
 		:flags    => {'bios_grub' => 'on'},
 	)
 	GRUB_PARTITION = OpenStruct.new(
-		:label    => GRUB_PARTITION_LABEL,
+		:label    => "GRUB_CFG",
 		:fs       => "ext4",
 		:size_mb  => 32,
+		:grub_cfg => true,
 	)
 	OS_PARTITION = OpenStruct.new(
-		:label    => OS_PARTITION_LABEL,
+		:label    => "OS",
 		:fs       => "ext4",
 		:size_mb  => 768, # 0.75 * 1024
 		:os       => true,
@@ -47,7 +48,7 @@ class BiosDiskBuilder < DiskBuilder
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
-				grub_part = File.join('/dev/disk/by-label', GRUB_PARTITION_LABEL)
+				grub_part = File.join('/dev/disk/by-label', GRUB_PARTITION.label)
 				execute!("mount #{grub_part} #{mountdir}")
 
 				grub_dir = File.join(mountdir, 'boot', 'grub')
