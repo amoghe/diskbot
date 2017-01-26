@@ -58,7 +58,9 @@ class DiskBuilder < BaseBuilder
 
 	##
 	# Total disk size we need to allocate (relies on partition_layout)
-	# - all partition sizes + first offest + 1MB for end since parted uses END as inclusive
+	# = all partition sizes
+	# + first offest (from left end)
+	# + 1MB for end since parted uses END as inclusive
 	#
 	def total_disk_size
 		partition_layout.inject(0) { |memo, elem| memo + elem.size_mb } \
@@ -89,12 +91,13 @@ class DiskBuilder < BaseBuilder
 				execute!("parted #{dev} set #{index+1} #{k} #{v}")
 			}
 
+			label_path = "/dev/disk/by-partlabel/#{part.label}"
 			if part.fs == 'fat32'
-				execute!("mkfs.fat -F32 -n#{part.label} /dev/disk/by-partlabel/#{part.label}")
+				execute!("mkfs.fat -F32 -n#{part.label} #{label_path}")
 			elsif part.fs == 'fat16'
-				execute!("mkfs.fat -F16 -n#{part.label} /dev/disk/by-partlabel/#{part.label}")
+				execute!("mkfs.fat -F16 -n#{part.label} #{label_path}")
 			else
-				execute!("mkfs.#{part.fs} -L \"#{part.label}\" /dev/disk/by-partlabel/#{part.label}")
+				execute!("mkfs.#{part.fs} -L \"#{part.label}\" #{label_path}")
 			end
 
 		end
@@ -195,7 +198,8 @@ class DiskBuilder < BaseBuilder
 		# mount os partition, unpack the image on it, unmount it
 		Dir.mktmpdir do |mountdir|
 			begin
-				execute!("mount #{File.join('/dev/disk/by-label', OS_PARTITION_LABEL)} #{mountdir}")
+				os_part_path = File.join('/dev/disk/by-label', OS_PARTITION_LABEL)
+				execute!("mount #{os_part_path} #{mountdir}")
 
 				execute!(['tar ',
 					'--gunzip',
