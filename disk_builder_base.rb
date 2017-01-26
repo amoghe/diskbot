@@ -85,6 +85,50 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
+	# Image the disk.
+	#
+	def build
+		header("Building disk")
+		if @dev == nil
+			self.with_loopback_disk { self.__build_on_dev }
+		else
+			self.__build_on_dev
+		end
+	end
+
+	##
+	# Perform the actual build, assuming @dev is setup
+	#
+	def __build_on_dev
+		notice("Creating partitions on disk")
+		self.create_partitions
+
+		notice("Installing bootloader on disk")
+		self.install_bootloader
+
+		notice("Generating bootloader config")
+		self.configure_bootloader
+
+		notice("Installing system image on disk partitions")
+		self.install_system_image
+
+		notice("Creating vmdk from raw disk")
+		self.create_vmdk
+	end
+
+	##
+	# Execute the specified block having setup a loopback device as @dev
+	#
+	def with_loopback_disk
+		notice("Creating disk file and loopback device")
+		self.create_loopback_disk
+		yield if block_given?
+	ensure
+		notice("Deleting loop disk (and its backing file)")
+		self.delete_loopback_disk
+	end
+
+	##
 	# Expects the hardware specific derivative class to implement this.
 	#
 	def create_partitions
@@ -118,35 +162,6 @@ class DiskBuilder < BaseBuilder
 
 		end
 		nil
-	end
-
-	##
-	# Image the disk.
-	#
-	def build
-		header("Building disk")
-
-		notice("Creating disk file and loopback device")
-		self.create_loopback_disk
-
-		notice("Creating partitions on disk")
-		self.create_partitions
-
-		notice("Installing bootloader on disk")
-		self.install_bootloader
-
-		notice("Generating bootloader config")
-		self.configure_bootloader
-
-		notice("Installing system image on disk partitions")
-		self.install_system_image
-
-		notice("Creating vmdk from raw disk")
-		self.create_vmdk
-
-	ensure
-		notice("Deleting loop disk (and its backing file)")
-		self.delete_loopback_disk
 	end
 
 	##
