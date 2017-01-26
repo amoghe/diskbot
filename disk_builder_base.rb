@@ -208,12 +208,12 @@ class DiskBuilder < BaseBuilder
 	##
 	# Put the image on the disk.
 	#
-	def install_system_image(num_os=1)
+	def install_system_image()
 		unless image_tarball_path and File.exists?(image_tarball_path)
 			raise RuntimeError, 'Invalid image specified'
 		end
 
-		# We only install to the first OS partition, for now
+		# We only install to the first OS partition, for now (TODO)
 		os_part = first_os_partition()
 
 		# mount os partition, unpack the image on it, unmount it
@@ -320,6 +320,8 @@ class DiskBuilder < BaseBuilder
 
 	##
 	# Contents of the fstab file
+	# The os_part_label arg tells us which OS this fstab is for, and hence which
+	# one to mount at '/'
 	#
 	def fstab_contents(os_part_label)
 
