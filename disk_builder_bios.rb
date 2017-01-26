@@ -76,7 +76,7 @@ class BiosDiskBuilder < DiskBuilder
 						"--prefix=\"/boot/grub\""	,
 						"--format=#{GRUB_ARCHITECTURE}"	,
 						# ext2 module handles ext3,4 filesystems
-						"biosdisk ext2 part_gpt search" ,
+						"biosdisk ext2 part_gpt search lvm" ,
 					].join(' '))
 				end
 

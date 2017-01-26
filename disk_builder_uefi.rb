@@ -74,7 +74,7 @@ class UefiDiskBuilder < DiskBuilder
 						# modules to bake into the img
 						"cat echo ext2 fat search part_gpt part_msdos efifwsetup efi_gop efi_uga",
 						"gfxterm gfxterm_background gfxterm_menu test all_video loadenv",
-						"normal boot configfile linux linuxefi"
+						"normal boot configfile linux linuxefi lvm"
 					].join(' '))
 				end
 
