@@ -5,15 +5,22 @@ require_relative 'debootstrap_builder'
 require_relative 'disk_builder_bios'
 require_relative 'disk_builder_uefi'
 
-distro = "ubuntu" # or "debian"
-livecd = false
+distro  = "ubuntu" # or "debian"
+livecd  = false
+verbose = ENV.has_key?('VERBOSE')
 
 PREREQS = {
+	# tool:        pkgs_that_provides_it_on_xenial
 	'debootstrap': 'debootstrap',
 	'fallocate':   'util-linux',
 	'losetup':     'mount',
 	'qemu-img':    'qemu-utils',
 }
+
+# Shorthand
+DB  = DebootstrapBuilder
+UDB = UefiDiskBuilder
+BDB = BiosDiskBuilder
 
 namespace :prereqs do
 
@@ -31,46 +38,53 @@ end
 namespace :build do
 
 	# How to build up a cache of packages needed for speeding up repeated debootstrap runs.
-	file DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DebootstrapBuilder.new(distro, ENV.has_key?('VERBOSE'), livecd).create_debootstrap_packages_tarball()
+	file DB::CACHED_DEBOOTSTRAP_PKGS_PATH do
+		DB.new(distro, verbose, livecd).create_debootstrap_packages_tarball()
 	end
 
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
-	file DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH => DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DebootstrapBuilder.new(distro, ENV.has_key?('VERBOSE'), livecd).create_debootstrap_rootfs()
+	file DB::DEBOOTSTRAP_ROOTFS_PATH => DB::CACHED_DEBOOTSTRAP_PKGS_PATH do
+		DB.new(distro, verbose, livecd).create_debootstrap_rootfs()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file UefiDiskBuilder::UEFI_VMDK_FILE_PATH => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH do
-		UefiDiskBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH, ENV.has_key?('VERBOSE')).build
+	file UDB::UEFI_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
+		UDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH, verbose).build
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file BiosDiskBuilder::BIOS_VMDK_FILE_PATH => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH do
-		BiosDiskBuilder.new(DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH, ENV.has_key?('VERBOSE')).build
+	file BDB::BIOS_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
+		BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH, verbose).build
 	end
+
+	# file UefiDiskBuilderLvm::VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
+	# 	UefiDiskBuilderLvm.new(DB::DEBOOTSTRAP_ROOTFS_PATH, verbose).build
+	# end
 
 	#
 	# Build a tarball of cached deb packages usable by debootstrap (created by debootstrap).
 	#
 	desc 'Build debootstrap package cache (env vars: VERBOSE)'
-	task :cache => DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH
+	task :cache => DB::CACHED_DEBOOTSTRAP_PKGS_PATH
 
 	#
 	# Build a basic rootfs using debootstrap.
 	#
 	desc 'Build basic rootfs using debootstrap (env vars: VERBOSE)'
-	task :rootfs => DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH
+	task :rootfs => DB::DEBOOTSTRAP_ROOTFS_PATH
 
 	#
 	# Build disks.
 	#
 	desc 'Build a bootable UEFI disk using the debootstrap rootfs image (env vars: VERBOSE)'
-	task :vmdk_uefi => UefiDiskBuilder::UEFI_VMDK_FILE_PATH
+	task :vmdk_uefi => UDB::UEFI_VMDK_FILE_PATH
 
 	desc 'Build a bootable BIOS disk using the debootstrap rootfs image (env vars: VERBOSE)'
-	task :vmdk_bios => BiosDiskBuilder::BIOS_VMDK_FILE_PATH
+	task :vmdk_bios => BDB::BIOS_VMDK_FILE_PATH
+
+	# desc 'Build a bootable UEFI disk (with LVM partitions) using the specified rootfs image'
+	# task :vmdk_uefi_lvm => UefiDiskBuilderLvm::VMDK_FILE_PATH
 end
 
 # Clean tasks
@@ -78,22 +92,22 @@ namespace :clean do
 
 	desc "Clean the debootstrap rootfs file"
 	task :cache do
-		sh("rm -f #{DebootstrapBuilder::CACHED_DEBOOTSTRAP_PKGS_PATH}")
+		sh("rm -f #{DB::CACHED_DEBOOTSTRAP_PKGS_PATH}")
 	end
 
 	desc "Clean the debootstrap rootfs file"
 	task :rootfs do
-		sh("rm -f #{DebootstrapBuilder::DEBOOTSTRAP_ROOTFS_PATH}")
+		sh("rm -f #{DB::DEBOOTSTRAP_ROOTFS_PATH}")
 	end
 
 	desc "Clean the UEFI disk file"
 	task :vmdk_uefi do
-		sh("rm -f #{UefiDiskBuilder::UEFI_VMDK_FILE_PATH}")
+		sh("rm -f #{UDB::UEFI_VMDK_FILE_PATH}")
 	end
 
 	desc "Clean the BIOS disk file"
 	task :vmdk_bios do
-		sh("rm -f #{BiosDiskBuilder::BIOS_VMDK_FILE_PATH}")
+		sh("rm -f #{BDB::BIOS_VMDK_FILE_PATH}")
 	end
 
 	desc "Clean all disk files"
