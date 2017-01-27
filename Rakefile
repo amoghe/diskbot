@@ -28,7 +28,8 @@ namespace :prereqs do
 	task :check do
 		PREREQS.keys.each do |tool|
 			sh("which #{tool}") do |ok, res|
-				puts "Missing #{tool}, Run: 'sudo apt-get install #{PREREQS[tool]}'" if not ok
+				puts "Missing #{tool}." \
+					"Run: 'sudo apt-get install #{PREREQS[tool]}'" if not ok
 			end
 		end
 	end
@@ -58,12 +59,12 @@ namespace :build do
 		BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH, dev: ENV.fetch('dev', nil)).build
 	end
 
-	# file UefiDiskBuilderLvm::VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
-	# 	UefiDiskBuilderLvm.new(DB::DEBOOTSTRAP_ROOTFS_PATH, dev: ENV.fetch('dev', nil)).build
-	# end
+	file UefiDiskBuilderLvm::VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
+		UefiDiskBuilderLvm.new(DB::DEBOOTSTRAP_ROOTFS_PATH, dev: ENV.fetch('dev', nil)).build
+	end
 
 	#
-	# Build a tarball of cached deb packages usable by debootstrap (created by debootstrap).
+	# Build a tarball of cached deb packages usable by debootstrap.
 	#
 	desc 'Build debootstrap package cache (env vars: VERBOSE)'
 	task :cache => DB::CACHED_DEBOOTSTRAP_PKGS_PATH
@@ -77,14 +78,14 @@ namespace :build do
 	#
 	# Build disks.
 	#
-	desc 'Build a bootable UEFI disk using the debootstrap rootfs image (env vars: VERBOSE)'
+	desc 'Build a bootable UEFI disk using the debootstrap rootfs'
 	task :vmdk_uefi => UDB::UEFI_VMDK_FILE_PATH
 
-	desc 'Build a bootable BIOS disk using the debootstrap rootfs image (env vars: VERBOSE)'
+	desc 'Build a bootable BIOS disk using the debootstrap rootfs'
 	task :vmdk_bios => BDB::BIOS_VMDK_FILE_PATH
 
-	# desc 'Build a bootable UEFI disk (with LVM partitions) using the specified rootfs image'
-	# task :vmdk_uefi_lvm => UefiDiskBuilderLvm::VMDK_FILE_PATH
+	desc 'Build a bootable UEFI disk (with LVM ) using the specified rootfs'
+	task :vmdk_uefi_lvm => UefiDiskBuilderLvm::VMDK_FILE_PATH
 end
 
 # Clean tasks
