@@ -112,3 +112,30 @@ class UefiDiskBuilder < DiskBuilder
 		Dir.glob("#{dir}/*.deb") { |pkg| execute!("dpkg-deb --extract #{pkg} #{dir}") }
 	end
 end
+
+##
+#
+#
+class UefiDiskBuilderLvm < UefiDiskBuilder
+
+	VMDK_FILE_NAME  = "lvm_uefi_disk.vmdk"
+	VMDK_FILE_PATH  = File.join(File.expand_path(File.dirname(__FILE__)), VMDK_FILE_NAME)
+
+	def partition_layout
+		return [
+			ESP_PARTITION ,
+			GRUB_PARTITION,
+			# LVM partition
+			DeepStruct.new(
+				:label    => 'LVM_PART',
+				:size_mb  => OS_PARTITION.size_mb + 32, # larger than OS
+				:flags    => {'lvm' => 'on'},
+				:lvm      => {
+					:vg_name  => 'diskbot_vg',
+					:volumes  => [ OS_PARTITION ],
+				}
+			)
+		]
+	end
+
+end
