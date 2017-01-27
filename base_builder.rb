@@ -95,7 +95,6 @@ class BaseBuilder < PrettyPrinter
 		end
 	end
 
-
 	def __on_custom_tmpfs(dir, &block)
 		# We're already on a tmpfs, so no need to mount tmpfs on a
 		# temp dir, just use the dir instead.
@@ -117,6 +116,11 @@ class BaseBuilder < PrettyPrinter
 				execute!("umount #{tempdir}", true)
 			end
 		end
+	end
+
+	def breakpoint
+		yellow("[Breakpoint]. Hit ENTER to continue >")
+		gets()
 	end
 
 end
