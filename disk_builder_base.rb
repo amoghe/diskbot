@@ -152,7 +152,9 @@ class DiskBuilder < BaseBuilder
 			}
 
 			label_path = "/dev/disk/by-partlabel/#{part.label}"
-			if part.fs == 'fat32'
+			if not part.fs
+				warn("No filesystem specified for #{part.label}. Skipping FS")
+			elsif part.fs == 'fat32'
 				execute!("mkfs.fat -F32 -n#{part.label} #{label_path}")
 			elsif part.fs == 'fat16'
 				execute!("mkfs.fat -F16 -n#{part.label} #{label_path}")
