@@ -25,28 +25,28 @@ class PrettyPrinter
 	def info(line)
 		line = "[INFO] #{line}"
 		line = STDOUT.tty? ? green(line) : line
-		puts line
+		puts(line)
 	end
 
 	def warn(line)
 		line = "[WARN] #{line}"
 		line = STDOUT.tty? ? red(line) : line
-		puts "\n" + line
+		puts("\n" + line)
 	end
 
 	def notice(line)
 		line = "[NOTI] #{line}"
 		line = STDOUT.tty? ? blue(line) : line
-		puts "\n" + line
+		puts("\n" + line)
 	end
 
 	def header(line)
 		l_msg = "- - -[#{line}]"
 		r_msg = "- " * ((80 - l_msg.length)/2)
 
-		puts ""
-		puts yellow("#{l_msg}#{r_msg}")
-		puts ""
+		puts("")
+		puts(yellow("#{l_msg}#{r_msg}"))
+		puts("")
 	end
 
 end
@@ -66,8 +66,8 @@ class BaseBuilder < PrettyPrinter
 	# Execute a command using rake 'sh'
 	def execute!(cmd, sudo=true, verbose=true)
 		cmd = sudo ? "sudo #{cmd}" : cmd
-    # `echo '#{cmd}' >> ./cmds.txt` if sudo
-		# puts cmd if verbose
+		# `echo '#{cmd}' >> ./cmds.txt` if sudo
+		# puts(cmd) if verbose
 		# `#{cmd}`
 		sh cmd, verbose: verbose do |ok, res|
 			if !ok
@@ -119,8 +119,8 @@ class BaseBuilder < PrettyPrinter
 	end
 
 	def breakpoint
-		yellow("[Breakpoint]. Hit ENTER to continue >")
-		gets()
+		puts(yellow("[Breakpoint]. Hit ENTER to continue >"))
+		STDIN.gets()
 	end
 
 end
