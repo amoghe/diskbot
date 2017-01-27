@@ -17,18 +17,15 @@ class DiskBuilder < BaseBuilder
 	PARTITION_TABLE_TYPE      = 'gpt'
 	FIRST_PARTITION_OFFSET    = 1 # offset from start of disk (in MiB)
 
-	attr_reader :dev
-	attr_reader :image_tarball_path
-	attr_reader :verbose
-
-	def initialize(image_path, verbose=false)
-		raise ArgumentError, "Invalid image specified: #{image_path}" unless File.exists?(image_path)
+	##
+	# C'tor
+	# dev: [string] optionally specify block device to operate on
+	#
+	def initialize(image_path, dev: nil)
+		raise ArgumentError, "Missing image #{image_path}" unless File.exists?(image_path)
 
 		@image_tarball_path = image_path
-		@verbose = verbose
-
-		# these will be set later
-		@dev      = nil
+		@dev      = dev
 		@tempfile = nil
 	end
 
@@ -133,7 +130,7 @@ class DiskBuilder < BaseBuilder
 	#
 	def create_partitions
 		info("Creating disk with #{PARTITION_TABLE_TYPE} parition table")
-		execute!("parted -s #{dev} mklabel #{PARTITION_TABLE_TYPE}")
+		execute!("parted -s #{@dev} mklabel #{PARTITION_TABLE_TYPE}")
 
 		start_size = FIRST_PARTITION_OFFSET
 		end_size   = FIRST_PARTITION_OFFSET
@@ -144,11 +141,11 @@ class DiskBuilder < BaseBuilder
 			end_size  += part.size_mb
 
 			info("Creating partition #{part.label} (#{part.fs}, #{part.size_mb}MiB)")
-			execute!("parted #{dev} mkpart #{part.label} #{part.fs} #{start_size}MiB #{end_size}MiB")
+			execute!("parted #{@dev} mkpart #{part.label} #{part.fs} #{start_size}MiB #{end_size}MiB")
 
 			(part.flags || {}).each_pair { |k, v|
 				info("Setting partition flag #{k} to #{v}")
-				execute!("parted #{dev} set #{index+1} #{k} #{v}")
+				execute!("parted #{@dev} set #{index+1} #{k} #{v}")
 			}
 
 			label_path = "/dev/disk/by-partlabel/#{part.label}"
@@ -179,15 +176,14 @@ class DiskBuilder < BaseBuilder
 		execute!("losetup #{output.strip} #{@tempfile}")
 		@dev = output.strip
 
-		info("Using file  : #{@tempfile}")
-		info("Using device: #{dev}")
+		info("Using loop device #{@dev} backed by file #{@tempfile}")
 	end
 
 	##
 	# Delete the loopback disk device
 	#
 	def delete_loopback_disk
-		execute!("losetup -d #{dev}") if dev && dev.length > 0
+		execute!("losetup -d #{@dev}") if @dev && @dev.length > 0
 		execute!("rm -f #{@tempfile}", false) if @tempfile && @tempfile.length > 0
 	end
 
@@ -226,7 +222,7 @@ class DiskBuilder < BaseBuilder
 	# Put the image on the disk.
 	#
 	def install_system_image()
-		unless image_tarball_path and File.exists?(image_tarball_path)
+		unless @image_tarball_path and File.exists?(@image_tarball_path)
 			raise RuntimeError, 'Invalid image specified'
 		end
 
@@ -242,7 +238,7 @@ class DiskBuilder < BaseBuilder
 				execute!(['tar ',
 					'--gunzip',
 					'--extract',
-					"--file=#{image_tarball_path}",
+					"--file=#{@image_tarball_path}",
 					# Perms from the image should be retained.
 					# Our job is to only install image to disk.
 					'--preserve-permissions',
@@ -273,7 +269,7 @@ class DiskBuilder < BaseBuilder
 	# Create a vmdk
 	#
 	def convert_to_vmdk(dest)
-		execute!("qemu-img convert -f raw -O vmdk #{@tempfile} #{dest}")
+		execute!("qemu-img convert -f raw -O vmdk #{@dev} #{dest}")
 
 		orig_user = `whoami`.strip
 		execute!("chown #{orig_user} #{dest}")

@@ -41,6 +41,8 @@ class BiosDiskBuilder < DiskBuilder
 	#
 	def install_bootloader
 
+		verbose = false
+
 		tools_dir = File.join(File.dirname(__FILE__), "scratch")
 		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
 		self.download_bootloader_tools(tools_dir)
@@ -102,7 +104,7 @@ class BiosDiskBuilder < DiskBuilder
 					"--device-map=/dev/null "  ,
 					verbose ? '--verbose' : '' ,
 					'--skip-fs-probe'          ,
-					"#{dev}"                   ,
+					"#{@dev}"                   ,
 				].join(' '))
 
 			ensure
