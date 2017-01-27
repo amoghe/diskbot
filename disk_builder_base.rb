@@ -76,8 +76,15 @@ class DiskBuilder < BaseBuilder
 	# From the #partition_layout, pick the first partition marked as :os
 	#
 	def first_os_partition
-		os_part = partition_layout.select { |p| p.os == true }.first
-		raise RuntimeError, 'Missing OS partition' unless os_part
+		os_part = partition_layout.detect { |p| p.os == true }
+		return os_part if os_part
+
+		# Next look for an OS in a LVM partition
+		lvm_part = partition_layout.detect { |p| p.lvm != nil }
+		raise RuntimeError, 'OS and LVM partitions missing' unless lvm_part
+
+		os_part = lvm_part.lvm.volumes.detect { |p| p.os == true }
+		raise RuntimeError, 'No partitions marked as OS' unless os_part
 		return os_part
 	end
 
@@ -159,9 +166,34 @@ class DiskBuilder < BaseBuilder
 				execute!("mkfs.#{part.fs} -L \"#{part.label}\" #{label_path}")
 			end
 
+			if part.lvm
+				notice("Setting up LVM on #{part.label}")
+				setup_lvm_on_partition(part)
+			end
+
 		end
 		nil
 	end
+
+	##
+	# Setup LVM on this partition (single PV, VG - multiple LVs)
+	#
+	def setup_lvm_on_partition(part)
+		return unless part.lvm
+		pvol = "/dev/disk/by-partlabel/#{part.label}"
+		execute!("pvcreate #{pvol}")
+		execute!("vgcreate #{part.lvm.vg_name} #{pvol}")
+
+		notice("Creating LVM partitions")
+		part.lvm.volumes.each do |vol|
+			info("Creating #{vol.label} volume")
+			execute!("lvcreate --name #{vol.label} --size #{vol.size_mb}MiB #{part.lvm.vg_name}")
+			execute!("mkfs.#{vol.fs} -L \"#{vol.label}\" /dev/#{part.lvm.vg_name}/#{vol.label}")
+		end
+
+		breakpoint()
+	end
+
 
 	##
 	# Create the loopback disk device on which we'll first install the image
