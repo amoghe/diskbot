@@ -1,0 +1,23 @@
+[
+  {
+    "label"    : "ESP",
+    "fs"       : "fat32",
+    "size_mb"  : 1023,
+    "flags"    : {"boot" : "on"},
+    "esp"      : true
+  },
+  {
+    "label"    : "GRUB_CFG",
+    "fs"       : "ext4",
+    "size_mb"  : 32,
+    "flags"    : {},
+    "grub_cfg" : true
+  },
+  {
+    "label"    : "OS",
+    "fs"       : "ext4",
+    "size_mb"  : 768,
+    "flags"    : {},
+    "os"       : true
+  }
+]

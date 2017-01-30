@@ -6,36 +6,6 @@ class BiosDiskBuilder < DiskBuilder
 	BIOS_VMDK_FILE_PATH  = File.join(File.expand_path(File.dirname(__FILE__)), BIOS_VMDK_FILE_NAME)
 	GRUB_ARCHITECTURE    = 'i386-pc' # What grub calls BIOS booting
 
-	BIOS_EMBED_PARTITION = OpenStruct.new(
-		:label    => "GRUB_EMBED",
-		:fs       => "ext4",
-		:size_mb  => 31,
-		:flags    => {'bios_grub' => 'on'},
-	)
-	GRUB_PARTITION = OpenStruct.new(
-		:label    => "GRUB_CFG",
-		:fs       => "ext4",
-		:size_mb  => 32,
-		:grub_cfg => true,
-	)
-	OS_PARTITION = OpenStruct.new(
-		:label    => "OS",
-		:fs       => "ext4",
-		:size_mb  => 768, # 0.75 * 1024
-		:os       => true,
-	)
-
-	##
-	# Return the array of partitions we'd like to create
-	#
-	def partition_layout
-		return [
-			BIOS_EMBED_PARTITION,
-			GRUB_PARTITION      ,
-			OS_PARTITION        ,
-		]
-	end
-
 	##
 	# Install the grub bootloader in a way that BIOS systems can boot it.
 	#
@@ -47,10 +17,12 @@ class BiosDiskBuilder < DiskBuilder
 		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
 		self.download_bootloader_tools(tools_dir)
 
+		grub_part = self.first_grub_cfg_partition()
+
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
-				grub_part = File.join('/dev/disk/by-label', GRUB_PARTITION.label)
+				grub_part = File.join('/dev/disk/by-label', grub_part.label)
 				execute!("mount #{grub_part} #{mountdir}")
 
 				grub_dir = File.join(mountdir, 'boot', 'grub')

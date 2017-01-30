@@ -21,20 +21,25 @@ class DiskBuilder < BaseBuilder
 	# C'tor
 	# dev: [string] optionally specify block device to operate on
 	#
-	def initialize(image_path, dev: nil)
-		raise ArgumentError, "Missing image #{image_path}" unless File.exists?(image_path)
+	def initialize(image_path, part_layout_file, dev: nil)
+		[
+			[image_path      , 'image file'],
+			[part_layout_file, 'partition layout file'],
+		].each do |arg|
+			raise ArgumentError, "Missing arg : #{arg[1]}" if arg[0] == nil
+			raise ArgumentError, "Invalid file: #{arg[0]}" if not File.exists?(arg[0])
+		end
 
 		@image_tarball_path = image_path
 		@dev      = dev
 		@tempfile = nil
-	end
 
-	##
-	# Return the array of partitions we'd like to create - derived classes will
-	# define this per their needs.
-	#
-	def partition_layout
-		raise RuntimeError, "Not implemented in base class"
+		parts = JSON.parse(File.read(part_layout_file))
+		raise ArgumentError, "Partition layout must be an Array" unless parts.kind_of?(Array)
+
+		@partition_layout = parts.map { |p| DeepStruct.new(p) }
+
+		validate_partition_layout
 	end
 
 	##
@@ -52,13 +57,32 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	# Total disk size we need to allocate (relies on partition_layout)
+	#
+	#
+	def validate_partition_layout
+		grub_parts = @partition_layout.select { |p| p.grub_cfg }
+		if grub_parts.empty?
+			raise RuntimeError, 'Missing grub_cfg partition in layout'
+		elsif grub_parts.count > 1
+			raise RuntimeError, 'Multiple grub_cfg partitions in layout'
+		end
+
+		if not (@partition_layout.find { |p| p.os } ||
+							@partition_layout.find { |p| p.lvm }.find { |p| p.os })
+			raise RuntimeError, 'Missing OS partition in layout'
+		end
+
+		return true
+	end
+
+	##
+	# Total disk size we need to allocate
 	# = all partition sizes
 	# + first offest (from left end)
 	# + 1MB for end since parted uses END as inclusive
 	#
 	def total_disk_size
-		partition_layout.inject(0) { |memo, elem| memo + elem.size_mb } \
+		@partition_layout.inject(0) { |memo, elem| memo + elem.size_mb } \
 			+ FIRST_PARTITION_OFFSET \
 			+ 1
 	end
@@ -67,7 +91,7 @@ class DiskBuilder < BaseBuilder
 	# From the partition_layout, pick the first partition marked as :grub_cfg
 	#
 	def first_grub_cfg_partition
-		grub_part = partition_layout.select { |p| p.grub_cfg == true }.first
+		grub_part = @partition_layout.select { |p| p.grub_cfg == true }.first
 		raise RuntimeError, 'Missing grub partition' unless grub_part
 		return grub_part
 	end
@@ -76,11 +100,11 @@ class DiskBuilder < BaseBuilder
 	# From the #partition_layout, pick the first partition marked as :os
 	#
 	def first_os_partition
-		os_part = partition_layout.detect { |p| p.os == true }
+		os_part = @partition_layout.detect { |p| p.os == true }
 		return os_part if os_part
 
 		# Next look for an OS in a LVM partition
-		lvm_part = partition_layout.detect { |p| p.lvm != nil }
+		lvm_part = @partition_layout.detect { |p| p.lvm != nil }
 		raise RuntimeError, 'OS and LVM partitions missing' unless lvm_part
 
 		os_part = lvm_part.lvm.volumes.detect { |p| p.os == true }
@@ -93,6 +117,7 @@ class DiskBuilder < BaseBuilder
 	#
 	def build
 		header("Building disk")
+
 		if @dev == nil
 			self.with_loopback_disk { self.__build_on_dev }
 		else
@@ -143,7 +168,7 @@ class DiskBuilder < BaseBuilder
 		end_size   = FIRST_PARTITION_OFFSET
 
 		# Create the partitions
-		partition_layout.each_with_index do |part, index|
+		@partition_layout.each_with_index do |part, index|
 			start_size = end_size
 			end_size  += part.size_mb
 
@@ -314,7 +339,6 @@ class DiskBuilder < BaseBuilder
 	#
 	def save_raw_image(dest)
 		execute!("cp #{@tempfile} #{dest}")
-
 		orig_user = `whoami`.strip
 		execute!("chown #{orig_user} #{dest}")
 	end
@@ -334,7 +358,7 @@ class DiskBuilder < BaseBuilder
 			""
 		]
 
-		partition_layout.select { |p| p.os == true }.each { |os_part|
+		@partition_layout.select { |p| p.os == true }.each { |os_part|
 			lines += [
 				"# #{os_part.label}",
 				"menuentry \"#{os_part.label}\" {",

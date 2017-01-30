@@ -6,36 +6,6 @@ class UefiDiskBuilder < DiskBuilder
 	UEFI_VMDK_FILE_PATH  = File.join(File.expand_path(File.dirname(__FILE__)), UEFI_VMDK_FILE_NAME)
 	GRUB_ARCHITECTURE    = 'x86_64-efi' # What grub calls UEFI booting
 
-	ESP_PARTITION = OpenStruct.new(
-		:label    => "ESP",
-		:fs       => "fat32",
-		:size_mb  => 1023,
-		:flags    => {'boot' => 'on'},
-	)
-	GRUB_PARTITION = OpenStruct.new(
-		:label    => "GRUB_CFG",
-		:fs       => "ext4",
-		:size_mb  => 32,
-		:grub_cfg => true,
-	)
-	OS_PARTITION = OpenStruct.new(
-		:label    => "OS",
-		:fs       => "ext4",
-		:size_mb  => 768, # 0.75 * 1024
-		:os       => true,
-	)
-
-	##
-	# Return the array of partitions we'd like to create
-	#
-	def partition_layout
-		return [
-			ESP_PARTITION ,
-			GRUB_PARTITION,
-			OS_PARTITION  ,
-		]
-	end
-
 	##
 	# Install the grub bootloader in a way that UEFI systems can boot it.
 	#
@@ -45,10 +15,12 @@ class UefiDiskBuilder < DiskBuilder
 		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
 		self.download_bootloader_tools(tools_dir)
 
+		grub_part = self.first_grub_cfg_partition()
+
 		# mount it at some temp location, and operate on it
 		Dir.mktmpdir do |mountdir|
 			begin
-				grub_part = File.join('/dev/disk/by-label', ESP_PARTITION.label)
+				grub_part = File.join('/dev/disk/by-label', grub_part.label)
 				execute!("mount #{grub_part} #{mountdir}")
 
 				boot_dir = File.join(mountdir, 'EFI', 'BOOT')

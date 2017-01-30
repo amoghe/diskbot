@@ -51,16 +51,18 @@ namespace :build do
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file UDB::UEFI_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
-		UDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH, dev: ENV.fetch('dev', nil)).build
+		builder = UDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+											ENV['PARTITION_LAYOUT'],
+											dev: ENV.fetch('dev', nil))
+		builder.build()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file BDB::BIOS_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
-		BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH, dev: ENV.fetch('dev', nil)).build
-	end
-
-	file UefiDiskBuilderLvm::VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
-		UefiDiskBuilderLvm.new(DB::DEBOOTSTRAP_ROOTFS_PATH, dev: ENV.fetch('dev', nil)).build
+		builder = BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+											ENV['PARTITION_LAYOUT'],
+											dev: ENV.fetch('dev', nil))
+		builder.build()
 	end
 
 	#
