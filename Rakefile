@@ -84,8 +84,6 @@ namespace :build do
 	desc 'Build a bootable BIOS disk using the debootstrap rootfs'
 	task :vmdk_bios => BDB::BIOS_VMDK_FILE_PATH
 
-	desc 'Build a bootable UEFI disk (with LVM ) using the specified rootfs'
-	task :vmdk_uefi_lvm => UefiDiskBuilderLvm::VMDK_FILE_PATH
 end
 
 # Clean tasks
