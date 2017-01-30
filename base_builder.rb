@@ -135,7 +135,11 @@ class DeepStruct < OpenStruct
     @table = {}
     @hash_table = {}
 
-    if hash
+		if hash and !hash.kind_of?(Hash)
+			raise ArgumentError, "Specified arg is not a Hash"
+		end
+
+		if hash
       hash.each do |k,v|
         @table[k.to_sym] = (v.is_a?(Hash) ? self.class.new(v) : v)
         @hash_table[k.to_sym] = v
