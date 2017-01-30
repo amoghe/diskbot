@@ -1,0 +1,9 @@
+[
+  {
+    "label"    : "OS",
+    "fs"       : "ext4",
+    "size_mb"  : 768,
+    "flags"    : {},
+    "os"       : true
+  }
+]

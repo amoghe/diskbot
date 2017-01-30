@@ -141,8 +141,18 @@ class DeepStruct < OpenStruct
 
 		if hash
       hash.each do |k,v|
-        @table[k.to_sym] = (v.is_a?(Hash) ? self.class.new(v) : v)
-        @hash_table[k.to_sym] = v
+				val = nil
+				# Try to handle composite structures (Hash/Array) as values
+				case
+				when v.is_a?(Hash)
+					val = self.class.new(v)
+				when v.is_a?(Array)
+					val = v.map{ |elem| elem.is_a?(Hash) ? self.class.new(elem) : elem }
+				else
+					val = v
+				end
+        @table[k.to_sym] = val
+        @hash_table[k.to_sym] = val
 
         new_ostruct_member(k)
       end

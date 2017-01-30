@@ -1,0 +1,19 @@
+[
+  {
+    "label"    : "LVM_CONT",
+    "size_mb"  : 1024,
+    "flags"    : { "lvm": "on" },
+    "lvm"      : {
+      "vg_name": "diskbot_vg",
+      "volumes": [
+        {
+          "label"    : "OS",
+          "fs"       : "ext4",
+          "size_mb"  : 768,
+          "flags"    : {},
+          "os"       : true
+        }
+      ]
+    }
+  }
+]

@@ -7,6 +7,27 @@ class BiosDiskBuilder < DiskBuilder
 	GRUB_ARCHITECTURE    = 'i386-pc' # What grub calls BIOS booting
 
 	##
+	# Additional partitions needed to install bootloader
+	#
+	def bootloader_partitions
+		return [
+			{
+				"label"    => "GRUB_EMBED",
+				"fs"       =>"ext4",
+				"size_mb"  => 31,
+				"flags"    => {"bios_grub" => "on"},
+			},
+			{
+				"label"    => "GRUB_CFG",
+				"fs"       => "ext4",
+				"size_mb"  => 32,
+				"flags"    => {},
+				"grub_cfg" => true,
+			},
+		]
+	end
+
+	##
 	# Install the grub bootloader in a way that BIOS systems can boot it.
 	#
 	def install_bootloader

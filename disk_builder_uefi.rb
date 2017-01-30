@@ -7,6 +7,28 @@ class UefiDiskBuilder < DiskBuilder
 	GRUB_ARCHITECTURE    = 'x86_64-efi' # What grub calls UEFI booting
 
 	##
+	# Additional partitions needed to install bootloader
+	#
+	def bootloader_partitions
+		return [
+			{
+				"label"    => "ESP",
+				"fs"       => "fat32",
+				"size_mb"  => 1023,
+				"flags"    => {"boot" => "on"},
+				"esp"      => true
+			},
+			{
+				"label"    => "GRUB_CFG",
+				"fs"       => "ext4",
+				"size_mb"  => 32,
+				"flags"    => {},
+				"grub_cfg" => true,
+			},
+		]
+	end
+
+	##
 	# Install the grub bootloader in a way that UEFI systems can boot it.
 	#
 	def install_bootloader
@@ -15,12 +37,13 @@ class UefiDiskBuilder < DiskBuilder
 		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
 		self.download_bootloader_tools(tools_dir)
 
-		grub_part = self.first_grub_cfg_partition()
+		esp_part = @partition_layout.find { |p| p.esp }
+		raise RuntimeError, "Missing ESP partition" if not esp_part
 
-		# mount it at some temp location, and operate on it
+		# mount it at some temp location, and write our files to it
 		Dir.mktmpdir do |mountdir|
 			begin
-				grub_part = File.join('/dev/disk/by-label', grub_part.label)
+				grub_part = File.join('/dev/disk/by-label', esp_part.label)
 				execute!("mount #{grub_part} #{mountdir}")
 
 				boot_dir = File.join(mountdir, 'EFI', 'BOOT')

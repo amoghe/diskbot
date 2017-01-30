@@ -37,9 +37,18 @@ class DiskBuilder < BaseBuilder
 		parts = JSON.parse(File.read(part_layout_file))
 		raise ArgumentError, "Partition layout must be an Array" unless parts.kind_of?(Array)
 
-		@partition_layout = parts.map { |p| DeepStruct.new(p) }
+		# order is important, we'd like to keep bootloader partitions ahead
+		all_partitions = self.bootloader_partitions + parts
+		@partition_layout = all_partitions.map { |p| DeepStruct.new(p) }
 
 		validate_partition_layout
+	end
+
+	##
+	# Platform specific partitions (needed by bootloader)
+	#
+	def bootloader_partitions
+		raise RuntimeError, "Not implemented in base class"
 	end
 
 	##
@@ -57,9 +66,10 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	#
+	# Validate that the partition layout is usable
 	#
 	def validate_partition_layout
+		# Check for exactly one grub_cfg partition
 		grub_parts = @partition_layout.select { |p| p.grub_cfg }
 		if grub_parts.empty?
 			raise RuntimeError, 'Missing grub_cfg partition in layout'
@@ -67,9 +77,44 @@ class DiskBuilder < BaseBuilder
 			raise RuntimeError, 'Multiple grub_cfg partitions in layout'
 		end
 
-		if not (@partition_layout.find { |p| p.os } ||
-							@partition_layout.find { |p| p.lvm }.find { |p| p.os })
-			raise RuntimeError, 'Missing OS partition in layout'
+		lvm_parts = @partition_layout.select { |p| p.lvm }
+
+		# Check for at least one OS partition when no LVM
+		if lvm_parts.count == 0
+			if not @partition_layout.find { |p| p.os }
+				raise RuntimeError, 'Missing OS partition (non LVM)'
+			end
+			return
+		end
+
+		# --- What follows are LVM specific checks ---
+
+		# Check for missing VG names
+		if lvm_parts.select { |l| l.lvm.vg_name.empty? }.count != 0
+			raise RuntimeError, 'One or more LVM partitions are missing vg_name'
+		end
+
+		# Check for at least one OS partition
+		vols = lvm_parts.map { |l| l.lvm.volumes }.flatten
+		if not vols.find { |v| v.os }
+			raise RuntimeError, 'Missing OS partition in layout (LVM)'
+		end
+
+		# Check if each VG has enough size to accomodate its LVs (volumes)
+		lvm_parts.each do |p|
+			total_mb = 0
+			p.lvm.volumes.each { |v| total_mb += v.size_mb }
+			if total_mb > (p.size_mb + 0.10*p.size_mb) # addl 10% for lvm metadata
+				raise RuntimeError, "VG #{p.label} has more LVs that capacity"
+			end
+		end
+
+		# Check for unique partition labels
+		vols = lvm_parts.map { |l| l.lvm.volumes }.flatten
+		labels = {}
+		vols.each do |v|
+			raise ArgumentError, "Dup FS label #{v.label}" if labels.has_key?(v.label)
+			labels[v.label] = true
 		end
 
 		return true
