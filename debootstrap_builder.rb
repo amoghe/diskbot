@@ -11,6 +11,7 @@ class DebootstrapBuilder < BaseBuilder
 		'isc-dhcp-client'    , # dhcp
 		'net-tools'          , # ifconfig
 		'ifupdown'           , # 'ifup, ifdown, /etc/network/interfaces'
+		'lvm2'               ,
 		'openssh-server'     ,
 		'sudo'               ,
 		'zile'               ,
