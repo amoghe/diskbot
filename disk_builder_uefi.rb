@@ -14,7 +14,7 @@ class UefiDiskBuilder < DiskBuilder
 			{
 				"label"    => "ESP",
 				"fs"       => "fat32",
-				"size_mb"  => 1023,
+				"size_mb"  => 512,
 				"flags"    => {"boot" => "on"},
 				"esp"      => true
 			},
