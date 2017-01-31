@@ -158,6 +158,20 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
+	#
+	#
+	def all_os_partitions
+		# first all the regular OS partitions
+		os_parts = @partition_layout.select { |p| p.os == true }
+		# next all the lvm OS partitions
+		lvm_parts = @partition_layout.select { |p| p.lvm != nil }
+		lvm_parts.each { |lp|
+			os_parts += lp.lvm.volumes.select { |v| v.os == true }
+		}
+		return os_parts
+	end
+
+	##
 	# Image the disk.
 	#
 	def build
@@ -261,9 +275,7 @@ class DiskBuilder < BaseBuilder
 			execute!("mkfs.#{vol.fs} -L \"#{vol.label}\" /dev/#{part.lvm.vg_name}/#{vol.label}")
 		end
 
-		breakpoint()
 	end
-
 
 	##
 	# Create the loopback disk device on which we'll first install the image
@@ -403,7 +415,7 @@ class DiskBuilder < BaseBuilder
 			""
 		]
 
-		@partition_layout.select { |p| p.os == true }.each { |os_part|
+		self.all_os_partitions.each { |os_part|
 			lines += [
 				"# #{os_part.label}",
 				"menuentry \"#{os_part.label}\" {",
