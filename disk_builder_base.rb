@@ -240,6 +240,8 @@ class DiskBuilder < BaseBuilder
 			}
 
 			label_path = "/dev/disk/by-partlabel/#{part.label}"
+			self.wait_for_device(label_path)
+
 			if not part.fs
 				warn("No filesystem specified for #{part.label}. Skipping FS")
 			elsif part.fs == 'fat32'
@@ -465,6 +467,23 @@ class DiskBuilder < BaseBuilder
 			memo << "\n"
 			memo
 		}
+	end
+
+	##
+	# Wait for the give device (file path, really) to show up
+	#
+	def wait_for_device(dev_path, timeout_secs=5)
+		slept_secs = 0
+		quantum = 0.5
+
+		while slept_secs <= timeout_secs
+			return nil if File.exists?(dev_path)
+			sleep(quantum)
+			slept_secs += quantum
+		end
+
+		# If we reach here we didn't find the file in time
+		raise RuntimeError, "Timed out waiting for #{dev_path}"
 	end
 
 end
