@@ -31,8 +31,12 @@ class DiskBuilder < BaseBuilder
 		end
 
 		@image_tarball_path = image_path
-		@dev      = dev
 		@tempfile = nil
+
+		if dev
+			@nosave = true # we're flashing a real device, don't save vmdk
+			@dev    = dev
+		end
 
 		parts = JSON.parse(File.read(part_layout_file))
 		raise ArgumentError, "Partition layout must be an Array" unless parts.kind_of?(Array)
@@ -385,8 +389,12 @@ class DiskBuilder < BaseBuilder
 	# Create a vmdk
 	#
 	def convert_to_vmdk(dest)
-		execute!("qemu-img convert -f raw -O vmdk #{@dev} #{dest}")
+		if @nosave
+			info("Skipping save to vmdk since device was specified")
+			return
+		end
 
+		execute!("qemu-img convert -f raw -O vmdk #{@dev} #{dest}")
 		orig_user = `whoami`.strip
 		execute!("chown #{orig_user} #{dest}")
 	end
