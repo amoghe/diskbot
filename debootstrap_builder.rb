@@ -38,10 +38,13 @@ class DebootstrapBuilder < BaseBuilder
 
 	attr_reader :verbose
 
-	def initialize(distro, verbose, islive)
+	def initialize(distro,
+		customize_script:  nil,
+		verbose:           false,
+		livecd:            false)
 		@distro  = distro
 		@verbose = !!verbose
-		@islive  = !!islive
+		@islive  = !!livecd
 
 		case distro
 		when "ubuntu"
@@ -52,6 +55,11 @@ class DebootstrapBuilder < BaseBuilder
 			@archive_url = DEBIAN_APT_ARCHIVE_URL
 		else
 			raise ArgumentError, "Invalid distro specified"
+		end
+
+		@customize_script = nil
+		if customize_script && File.exists?(customize_script)
+			@customize_script = customize_script
 		end
 	end
 
@@ -65,6 +73,7 @@ class DebootstrapBuilder < BaseBuilder
 			add_apt_sources(tempdir)
 			add_admin_user(tempdir)
 			add_eth0_interface(tempdir)
+			customize_rootfs(tempdir)
 			package_rootfs(tempdir)
 		end
 
@@ -189,6 +198,38 @@ class DebootstrapBuilder < BaseBuilder
 	end
 
 	##
+	#
+	#
+	def customize_rootfs(tempdir)
+		return unless @customize_script
+		notice('Running customization script in the rootfs (chroot)')
+		execute!("cp #{@customize_script} #{tempdir}/tmp/customize.sh")
+		execute!("chmod a+x #{tempdir}/tmp")
+		execute!("chroot #{tempdir} /tmp/customize.sh")
+	end
+
+	##
+	# Package the rootfs (in the dir argument) (tar.gz)
+	#
+	def package_rootfs(tempdir)
+		notice('Cleaning up packages in the rootfs')
+		execute!("chroot #{tempdir} apt-get clean")
+		notice('Packaging rootfs')
+		execute!(['tar ',
+			'--create',
+			'--gzip',
+			"--file=#{DEBOOTSTRAP_ROOTFS_PATH}",
+			# TODO: preserve perms, else whoever uses the image will have to twidle the perms again.
+			#'--owner=0',
+			#'--group=0',
+			'--preserve-permissions',
+			'--numeric-owner',
+			"-C #{tempdir} ."
+		].join(' '),
+		true)
+	end
+
+	##
 	# Create a debootstrap compatible tarball of deb packages.
 	#
 	def create_debootstrap_packages_tarball()
@@ -219,27 +260,6 @@ class DebootstrapBuilder < BaseBuilder
 		end
 
 		notice("debootstrap packages cached at:" + cached_pkgs_tarball)
-	end
-
-	##
-	# Package the rootfs (in the dir argument) (tar.gz)
-	#
-	def package_rootfs(tempdir)
-		notice('Cleaning up packages in the rootfs')
-		execute!("chroot #{tempdir} apt-get clean")
-		notice('Packaging rootfs')
-		execute!(['tar ',
-			'--create',
-			'--gzip',
-			"--file=#{DEBOOTSTRAP_ROOTFS_PATH}",
-			# TODO: preserve perms, else whoever uses the image will have to twidle the perms again.
-			#'--owner=0',
-			#'--group=0',
-			'--preserve-permissions',
-			'--numeric-owner',
-			"-C #{tempdir} ."
-		].join(' '),
-		true)
 	end
 
 end

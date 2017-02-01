@@ -38,15 +38,22 @@ end
 
 namespace :build do
 
-	# How to build up a cache of packages needed for speeding up repeated debootstrap runs.
+	# How to build a cache of pkgs needed for speeding up debootstrap runs.
 	file DB::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DB.new(distro, verbose, livecd).create_debootstrap_packages_tarball()
+		builder = DB.new(distro,
+			verbose: verbose,
+			livecd:  livecd)
+		builder.create_debootstrap_packages_tarball()
 	end
 
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
 	file DB::DEBOOTSTRAP_ROOTFS_PATH => DB::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		DB.new(distro, verbose, livecd).create_debootstrap_rootfs()
+		builder = DB.new(distro,
+			customize_script: ENV['CUSTOMIZE_SCRIPT'],
+			verbose: verbose,
+			livecd:  livecd)
+		builder.create_debootstrap_rootfs()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
@@ -68,13 +75,13 @@ namespace :build do
 	#
 	# Build a tarball of cached deb packages usable by debootstrap.
 	#
-	desc 'Build debootstrap package cache (env vars: VERBOSE)'
+	desc 'Build debootstrap package cache (supports some env vars)'
 	task :cache => DB::CACHED_DEBOOTSTRAP_PKGS_PATH
 
 	#
 	# Build a basic rootfs using debootstrap.
 	#
-	desc 'Build basic rootfs using debootstrap (env vars: VERBOSE)'
+	desc 'Build basic rootfs using debootstrap (supports some env vars)'
 	task :rootfs => DB::DEBOOTSTRAP_ROOTFS_PATH
 
 	#
