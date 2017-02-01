@@ -29,7 +29,7 @@ namespace :prereqs do
 		PREREQS.keys.each do |tool|
 			sh("which #{tool}") do |ok, res|
 				puts "Missing #{tool}." \
-					"Run: 'sudo apt-get install #{PREREQS[tool]}'" if not ok
+				"Run: 'sudo apt-get install #{PREREQS[tool]}'" if not ok
 			end
 		end
 	end
@@ -40,9 +40,7 @@ namespace :build do
 
 	# How to build a cache of pkgs needed for speeding up debootstrap runs.
 	file DB::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		builder = DB.new(distro,
-			verbose: verbose,
-			livecd:  livecd)
+		builder = DB.new(distro, verbose: verbose, livecd:  livecd)
 		builder.create_debootstrap_packages_tarball()
 	end
 
@@ -59,16 +57,16 @@ namespace :build do
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file UDB::UEFI_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
 		builder = UDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
-											ENV['PARTITION_LAYOUT'],
-											dev: ENV.fetch('dev', nil))
+			ENV['PARTITION_LAYOUT'],
+			dev: ENV.fetch('dev', nil))
 		builder.build()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file BDB::BIOS_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
 		builder = BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
-											ENV['PARTITION_LAYOUT'],
-											dev: ENV.fetch('dev', nil))
+			ENV['PARTITION_LAYOUT'],
+			dev: ENV.fetch('dev', nil))
 		builder.build()
 	end
 
@@ -85,13 +83,43 @@ namespace :build do
 	task :rootfs => DB::DEBOOTSTRAP_ROOTFS_PATH
 
 	#
-	# Build disks.
+	# Build vmdks.
 	#
-	desc 'Build a bootable UEFI disk using the debootstrap rootfs'
-	task :vmdk_uefi => UDB::UEFI_VMDK_FILE_PATH
+	namespace :vmdk do
+		desc 'Build a bootable UEFI vmdk disk using the debootstrap rootfs'
+		task :uefi => UDB::UEFI_VMDK_FILE_PATH
 
-	desc 'Build a bootable BIOS disk using the debootstrap rootfs'
-	task :vmdk_bios => BDB::BIOS_VMDK_FILE_PATH
+		desc 'Build a bootable BIOS vmdk disk using the debootstrap rootfs'
+		task :bios => BDB::BIOS_VMDK_FILE_PATH
+	end
+
+	#
+	# Build devices
+	#
+	namespace :device do
+		desc 'Build a bootable UEFI device using the debootstrap rootfs'
+		task :uefi do
+			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
+				raise ArgumentError, "Invalid device specified"
+			end
+			builder = UDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+				ENV['PARTITION_LAYOUT'],
+				dev: ENV.fetch('dev', nil))
+			builder.build()
+		end
+
+		desc 'Build a bootable BIOS device using the debootstrap rootfs'
+		task :bios => BDB::BIOS_VMDK_FILE_PATH do
+			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
+				raise ArgumentError, "Invalid device specified"
+			end
+			builder = BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+				ENV['PARTITION_LAYOUT'],
+				dev: ENV['dev'])
+			builder.build()
+		end
+
+	end
 
 end
 
