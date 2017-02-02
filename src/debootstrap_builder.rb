@@ -28,20 +28,14 @@ class DebootstrapBuilder < BaseBuilder
 	UBUNTU_APT_ARCHIVE_URL = "http://archive.ubuntu.com/ubuntu"
 	DEBIAN_APT_ARCHIVE_URL = "http://debian.osuosl.org/debian"
 
-	CWD = File.dirname(__FILE__)
-
-	CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
-	CACHED_DEBOOTSTRAP_PKGS_PATH = File.join(CWD, CACHED_DEBOOTSTRAP_PKGS_NAME)
-
-	DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tgz"
-	DEBOOTSTRAP_ROOTFS_PATH = File.join(CWD, DEBOOTSTRAP_ROOTFS_NAME)
-
 	attr_reader :verbose
 
 	def initialize(distro,
-		customize_script:  nil,
-		verbose:           false,
-		livecd:            false)
+		outfile,
+		debootstrap_pkg_cache: nil,
+		customize_script:      nil,
+		verbose:               false,
+		livecd:                false)
 		@distro  = distro
 		@verbose = !!verbose
 		@islive  = !!livecd
@@ -61,6 +55,13 @@ class DebootstrapBuilder < BaseBuilder
 		if customize_script && File.exists?(customize_script)
 			@customize_script = customize_script
 		end
+
+		# This could be nil, we'll check at runtime
+		if debootstrap_pkg_cache and File.exists?(debootstrap_pkg_cache)
+			@debootstrap_pkg_cache = File.expand_path(debootstrap_pkg_cache)
+		end
+
+		@outfile = outfile
 	end
 
 	def create_debootstrap_rootfs()
@@ -118,9 +119,9 @@ class DebootstrapBuilder < BaseBuilder
 	# Run debootstrap
 	#
 	def run_debootstrap(tempdir)
-		if File.exists?(CACHED_DEBOOTSTRAP_PKGS_PATH)
-			cached_pkgs_opt = "--unpack-tarball=#{CACHED_DEBOOTSTRAP_PKGS_PATH}"
-			info("Cached debootstrap packages found in tarball at: #{CACHED_DEBOOTSTRAP_PKGS_PATH}")
+		if @debootstrap_pkg_cache and File.exists?(@debootstrap_pkg_cache)
+			cached_pkgs_opt = "--unpack-tarball=#{@debootstrap_pkg_cache}"
+			info("Using cached debootstrap pkgs file at: #{@debootstrap_pkg_cache}")
 		else
 			cached_pkgs_opt = ""
 			info("No cached debootstrap packages found.")
@@ -218,7 +219,7 @@ class DebootstrapBuilder < BaseBuilder
 		execute!(['tar ',
 			'--create',
 			'--gzip',
-			"--file=#{DEBOOTSTRAP_ROOTFS_PATH}",
+			"--file=#{@outfile}",
 			# TODO: preserve perms, else whoever uses the image will have to twidle the perms again.
 			#'--owner=0',
 			#'--group=0',
@@ -234,10 +235,9 @@ class DebootstrapBuilder < BaseBuilder
 	#
 	def create_debootstrap_packages_tarball()
 		header("(Re)creating tarball of packages needed for debootstrap rootfs")
-		cached_pkgs_tarball = CACHED_DEBOOTSTRAP_PKGS_PATH
 
 		notice("Ensuring old packages tarball does not exist")
-		execute!("rm -f #{cached_pkgs_tarball}", false)
+		execute!("rm -f #{@outfile}", false)
 
 		self.on_mounted_tmpfs do |tempdir|
 			# create a work dir in the tempdir, because debootstrap wants to delete its work dir when
@@ -252,14 +252,14 @@ class DebootstrapBuilder < BaseBuilder
 				"--variant minbase",
 				"--components main,universe",
 				"--include #{all_addon_pkgs.join(",")}",
-				"--make-tarball #{cached_pkgs_tarball}",
+				"--make-tarball #{@outfile}",
 				@flavor,
 				workdir,
 				@archive_url,
 			].join(" "), false)
 		end
 
-		notice("debootstrap packages cached at:" + cached_pkgs_tarball)
+		notice("debootstrap packages cached at:" + @outfile)
 	end
 
 end

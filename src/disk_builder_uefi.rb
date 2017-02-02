@@ -2,8 +2,6 @@ require_relative "disk_builder_base"
 
 class UefiDiskBuilder < DiskBuilder
 
-	UEFI_VMDK_FILE_NAME  = "uefi_disk.vmdk"
-	UEFI_VMDK_FILE_PATH  = File.join(File.expand_path(File.dirname(__FILE__)), UEFI_VMDK_FILE_NAME)
 	GRUB_ARCHITECTURE    = 'x86_64-efi' # What grub calls UEFI booting
 
 	##
@@ -86,13 +84,6 @@ class UefiDiskBuilder < DiskBuilder
 	ensure
 		# Clean up temp dir where we downloaded grub tools
 		execute!("rm -rf #{tools_dir}")
-	end
-
-	##
-	# Create the vmdk file from the disk
-	#
-	def create_vmdk
-		self.convert_to_vmdk(UEFI_VMDK_FILE_PATH)
 	end
 
 	##

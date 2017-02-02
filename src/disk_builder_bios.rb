@@ -2,8 +2,6 @@ require_relative "disk_builder_base"
 
 class BiosDiskBuilder < DiskBuilder
 
-	BIOS_VMDK_FILE_NAME  = "bios_disk.vmdk"
-	BIOS_VMDK_FILE_PATH  = File.join(File.expand_path(File.dirname(__FILE__)), BIOS_VMDK_FILE_NAME)
 	GRUB_ARCHITECTURE    = 'i386-pc' # What grub calls BIOS booting
 
 	##
@@ -109,13 +107,6 @@ class BiosDiskBuilder < DiskBuilder
 	ensure
 		# Delete the bootloader tools
 		execute!("rm -rf #{tools_dir}")
-	end
-
-	##
-	# Create the vmdk file from the disk
-	#
-	def create_vmdk
-		self.convert_to_vmdk(BIOS_VMDK_FILE_PATH)
 	end
 
 	##

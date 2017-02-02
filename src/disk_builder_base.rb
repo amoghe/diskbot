@@ -21,7 +21,7 @@ class DiskBuilder < BaseBuilder
 	# C'tor
 	# dev: [string] optionally specify block device to operate on
 	#
-	def initialize(image_path, part_layout_file, dev: nil)
+	def initialize(image_path, part_layout_file, outfile, dev: nil)
 		[
 			[image_path      , 'image file'],
 			[part_layout_file, 'partition layout file'],
@@ -46,6 +46,11 @@ class DiskBuilder < BaseBuilder
 		@partition_layout = all_partitions.map { |p| DeepStruct.new(p) }
 
 		validate_partition_layout
+
+		@outfile = outfile
+		if @dev.nil? and @outfile.nil?
+			raise ArgumentError, "No output file OR device specified!"
+		end
 	end
 
 	##
@@ -66,7 +71,11 @@ class DiskBuilder < BaseBuilder
 	# Create the vmdk file from the disk
 	#
 	def create_vmdk
-		raise RuntimeError, "Not implemented in base class"
+		if @outfile.nil?
+			warn("No output file specified, refusing to output vmdk")
+			return
+		end
+		self.convert_to_vmdk(@outfile)
 	end
 
 	##

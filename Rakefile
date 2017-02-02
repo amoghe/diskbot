@@ -18,10 +18,28 @@ PREREQS = {
 }
 
 # Shorthand
-DB  = DebootstrapBuilder
 UDB = UefiDiskBuilder
 BDB = BiosDiskBuilder
 
+# Output files
+CWD = File.dirname(__FILE__)
+
+CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
+DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tgz"
+BIOS_VMDK_FILE_NAME  = "bios_disk.vmdk"
+UEFI_VMDK_FILE_NAME  = "uefi_disk.vmdk"
+
+OUTPUT_DIR = 'output'
+Dir.mkdir(OUTPUT_DIR) rescue Errno::EEXIST
+
+CACHED_DEBOOTSTRAP_PKGS_PATH = File.join(OUTPUT_DIR, CACHED_DEBOOTSTRAP_PKGS_NAME)
+DEBOOTSTRAP_ROOTFS_PATH = File.join(OUTPUT_DIR, DEBOOTSTRAP_ROOTFS_NAME)
+BIOS_VMDK_FILE_PATH  = File.join(OUTPUT_DIR, BIOS_VMDK_FILE_NAME)
+UEFI_VMDK_FILE_PATH  = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Prerequisite software check tasks
+#
 namespace :prereqs do
 
 	desc "Check prerequisite software is present"
@@ -36,18 +54,26 @@ namespace :prereqs do
 
 end
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# build tasks
+#
 namespace :build do
 
 	# How to build a cache of pkgs needed for speeding up debootstrap runs.
-	file DB::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		builder = DB.new(distro, verbose: verbose, livecd:  livecd)
+	file CACHED_DEBOOTSTRAP_PKGS_PATH do
+		builder = DebootstrapBuilder.new(distro,
+			CACHED_DEBOOTSTRAP_PKGS_PATH,
+			verbose: verbose,
+			livecd:  livecd)
 		builder.create_debootstrap_packages_tarball()
 	end
 
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
-	file DB::DEBOOTSTRAP_ROOTFS_PATH => DB::CACHED_DEBOOTSTRAP_PKGS_PATH do
-		builder = DB.new(distro,
+	file DEBOOTSTRAP_ROOTFS_PATH => CACHED_DEBOOTSTRAP_PKGS_PATH do
+		builder = DebootstrapBuilder.new(distro,
+			DEBOOTSTRAP_ROOTFS_PATH,
+			debootstrap_pkg_cache: CACHED_DEBOOTSTRAP_PKGS_PATH,
 			customize_script: ENV['CUSTOMIZE_SCRIPT'],
 			verbose: verbose,
 			livecd:  livecd)
@@ -55,17 +81,19 @@ namespace :build do
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file UDB::UEFI_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
-		builder = UDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+	file UEFI_VMDK_FILE_PATH => DEBOOTSTRAP_ROOTFS_PATH do
+		builder = UDB.new(DEBOOTSTRAP_ROOTFS_PATH,
 			ENV['PARTITION_LAYOUT'],
+			UEFI_VMDK_FILE_PATH,
 			dev: ENV.fetch('dev', nil))
 		builder.build()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file BDB::BIOS_VMDK_FILE_PATH => DB::DEBOOTSTRAP_ROOTFS_PATH do
-		builder = BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+	file BIOS_VMDK_FILE_PATH => DEBOOTSTRAP_ROOTFS_PATH do
+		builder = BDB.new(DEBOOTSTRAP_ROOTFS_PATH,
 			ENV['PARTITION_LAYOUT'],
+			BIOS_VMDK_FILE_PATH,
 			dev: ENV.fetch('dev', nil))
 		builder.build()
 	end
@@ -74,23 +102,23 @@ namespace :build do
 	# Build a tarball of cached deb packages usable by debootstrap.
 	#
 	desc 'Build debootstrap package cache (supports some env vars)'
-	task :cache => DB::CACHED_DEBOOTSTRAP_PKGS_PATH
+	task :cache => CACHED_DEBOOTSTRAP_PKGS_PATH
 
 	#
 	# Build a basic rootfs using debootstrap.
 	#
 	desc 'Build basic rootfs using debootstrap (supports some env vars)'
-	task :rootfs => DB::DEBOOTSTRAP_ROOTFS_PATH
+	task :rootfs => DEBOOTSTRAP_ROOTFS_PATH
 
 	#
 	# Build vmdks.
 	#
 	namespace :vmdk do
 		desc 'Build a bootable UEFI vmdk disk using the debootstrap rootfs'
-		task :uefi => UDB::UEFI_VMDK_FILE_PATH
+		task :uefi => UEFI_VMDK_FILE_PATH
 
 		desc 'Build a bootable BIOS vmdk disk using the debootstrap rootfs'
-		task :bios => BDB::BIOS_VMDK_FILE_PATH
+		task :bios => BIOS_VMDK_FILE_PATH
 	end
 
 	#
@@ -102,19 +130,21 @@ namespace :build do
 			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
 				raise ArgumentError, "Invalid device specified"
 			end
-			builder = UDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+			builder = UDB.new(DEBOOTSTRAP_ROOTFS_PATH,
 				ENV['PARTITION_LAYOUT'],
-				dev: ENV.fetch('dev', nil))
+				nil, # no outfile needed
+				dev: ENV['dev'])
 			builder.build()
 		end
 
 		desc 'Build a bootable BIOS device using the debootstrap rootfs'
-		task :bios => BDB::BIOS_VMDK_FILE_PATH do
+		task :bios => BIOS_VMDK_FILE_PATH do
 			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
 				raise ArgumentError, "Invalid device specified"
 			end
-			builder = BDB.new(DB::DEBOOTSTRAP_ROOTFS_PATH,
+			builder = BDB.new(DEBOOTSTRAP_ROOTFS_PATH,
 				ENV['PARTITION_LAYOUT'],
+				nil, # no outfile needed
 				dev: ENV['dev'])
 			builder.build()
 		end
@@ -123,17 +153,19 @@ namespace :build do
 
 end
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Clean tasks
+#
 namespace :clean do
 
 	desc "Clean the debootstrap rootfs file"
 	task :cache do
-		sh("rm -f #{DB::CACHED_DEBOOTSTRAP_PKGS_PATH}")
+		sh("rm -f #{CACHED_DEBOOTSTRAP_PKGS_PATH}")
 	end
 
 	desc "Clean the debootstrap rootfs file"
 	task :rootfs do
-		sh("rm -f #{DB::DEBOOTSTRAP_ROOTFS_PATH}")
+		sh("rm -f #{DEBOOTSTRAP_ROOTFS_PATH}")
 	end
 
 	desc "Clean the UEFI disk file"
