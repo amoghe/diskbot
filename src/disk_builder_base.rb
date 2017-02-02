@@ -72,7 +72,7 @@ class DiskBuilder < BaseBuilder
 	#
 	def create_vmdk
 		if @outfile.nil?
-			warn("No output file specified, refusing to output vmdk")
+			info("No output file specified, skipping to output vmdk")
 			return
 		end
 		self.convert_to_vmdk(@outfile)
@@ -312,6 +312,7 @@ class DiskBuilder < BaseBuilder
 	# Delete the loopback disk device
 	#
 	def delete_loopback_disk
+		execute!("sudo partx -d -v #{@dev}") # else we leak /dev/loop0p{1,2,3}
 		execute!("losetup -d #{@dev}") if @dev && @dev.length > 0
 		execute!("rm -f #{@tempfile}", false) if @tempfile && @tempfile.length > 0
 	end

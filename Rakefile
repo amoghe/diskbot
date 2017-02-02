@@ -14,6 +14,7 @@ PREREQS = {
 	'debootstrap': 'debootstrap',
 	'fallocate':   'util-linux',
 	'losetup':     'mount',
+	'partx':       'util-linux',
 	'qemu-img':    'qemu-utils',
 }
 
