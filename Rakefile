@@ -172,6 +172,11 @@ namespace :clean do
 		sh("rm -f #{DEBOOTSTRAP_ROOTFS_PATH}")
 	end
 
+	desc "Clean the ISO file"
+	task :iso do
+		sh("rm -f #{LIVECD_ISO_FILE_PATH}")
+	end
+
 	desc "Clean the UEFI disk file"
 	task :vmdk_uefi do
 		sh("rm -f #{UEFI_VMDK_FILE_PATH}")
