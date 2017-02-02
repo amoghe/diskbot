@@ -18,10 +18,6 @@ PREREQS = {
 	'qemu-img':    'qemu-utils',
 }
 
-# Shorthand
-UDB = UefiDiskBuilder
-BDB = BiosDiskBuilder
-
 # Output files
 CWD = File.dirname(__FILE__)
 
