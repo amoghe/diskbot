@@ -15,9 +15,9 @@ class IsoBuilder < BaseBuilder
   #
   #
   def build()
+    info("Ensure (temporary) workspace dirs exist")
     work_dirs = [ 'unpacked', 'iso', 'iso/isolinux', 'iso/live', 'tools' ]
     work_dirs.each { |dir| execute!("mkdir #{dir}", false) }
-
 
     info("Unpacking the rootfs to prepare it for live booting")
     execute!("tar -xzf #{@rootfs_path} -C unpacked")
@@ -28,7 +28,7 @@ class IsoBuilder < BaseBuilder
     execute!("chroot unpacked update-initramfs -u")
 
     info("Squashing the modified rootfs")
-    execute!("mksquashfs unpacked iso/live/root.squashfs -e boot -no-progress")
+    execute!("mksquashfs unpacked iso/live/root.squashfs -no-progress")
 
     info("Copying kernel and initrd into iso dir")
     execute!("cp unpacked/vmlinuz iso/live/vmlinuz")
@@ -40,7 +40,7 @@ class IsoBuilder < BaseBuilder
 
     info("Writing out isolinux config file")
     File.open("iso/isolinux/isolinux.cfg", 'w') { |f|
-      f.write(isolinux_cfg_contents())
+      f.write(self.isolinux_cfg_contents())
     }
 
     info("Creating ISO (using xorriso)")
@@ -49,7 +49,7 @@ class IsoBuilder < BaseBuilder
       "-r -J "\
       "-joliet-long "\
       "-l -cache-inodes "\
-      "-isohybrid-mbr isolinux/usr/lib/ISOLINUX/isohdpfx.bin "\
+      "-isohybrid-mbr tools/usr/lib/ISOLINUX/isohdpfx.bin "\
       "-partition_offset 16 "\
       "-A 'LiveISO' "\
       "-b isolinux/isolinux.bin "\
@@ -58,7 +58,7 @@ class IsoBuilder < BaseBuilder
       "-boot-load-size 4 "\
       "-boot-info-table "\
       "-o #{@output_path} "\
-      "./image")
+      "iso")
 
   ensure
     info("deleting (temporary) work dirs")
@@ -77,14 +77,21 @@ class IsoBuilder < BaseBuilder
 
   def isolinux_cfg_contents
     return [
-      #{}"UI menu.c32",
-      "prompt LiveSystem",
-      "default LiveSystem",
-      "timeout 15",
+      "UI menu.c32",
+      "PROMPT LiveCD",
+      "DEFAULT 1",
+      "TIMEOUT 15",
       "",
-      "label LiveSystem",
-      " kernel /live/vmlinuz",
-      " append initrd=/live/initrd.img boot=live",
+      "LABEL 1",
+      "  MENU DEFAULT",
+      "  MENU LABEL ^LiveCD",
+      "  KERNEL /live/vmlinuz",
+      "  APPEND initrd=/live/initrd.img boot=live quiet splash",
+      "",
+      "LABEL 2",
+      "  MENU LABEL ^LiveCD (verbose)",
+      "  KERNEL /live/vmlinuz",
+      "  APPEND initrd=/live/initrd.img boot=live",
       "",
     ].join("\n")
   end
