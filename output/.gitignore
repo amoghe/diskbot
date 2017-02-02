@@ -3,3 +3,6 @@
 
 # Ignore vmdk
 *.vmdk
+
+# Ignore ISO
+*.iso
