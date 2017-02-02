@@ -170,12 +170,12 @@ namespace :clean do
 
 	desc "Clean the UEFI disk file"
 	task :vmdk_uefi do
-		sh("rm -f #{UDB::UEFI_VMDK_FILE_PATH}")
+		sh("rm -f #{UEFI_VMDK_FILE_PATH}")
 	end
 
 	desc "Clean the BIOS disk file"
 	task :vmdk_bios do
-		sh("rm -f #{BDB::BIOS_VMDK_FILE_PATH}")
+		sh("rm -f #{BIOS_VMDK_FILE_PATH}")
 	end
 
 	desc "Clean all disk files"
