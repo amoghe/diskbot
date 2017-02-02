@@ -16,8 +16,6 @@ class DebootstrapBuilder < BaseBuilder
 		'sudo'               ,
 		'zile'               ,
 	]
-	# Additional packages that the user may specify without modifying code
-	ADDON_PKGS_FILE = 'custom_pkgs.json'
 
 	# What the kernel pks is called in each distro
 	KERNEL_PKG_NAME = {
@@ -33,12 +31,12 @@ class DebootstrapBuilder < BaseBuilder
 	def initialize(distro,
 		outfile,
 		debootstrap_pkg_cache: nil,
-		customize_script:      nil,
-		verbose:               false,
-		livecd:                false)
+		customize_pkgs:        nil,
+		customize_rootfs:      nil,
+		verbose:               false)
+
 		@distro  = distro
 		@verbose = !!verbose
-		@islive  = !!livecd
 
 		case distro
 		when "ubuntu"
@@ -52,13 +50,26 @@ class DebootstrapBuilder < BaseBuilder
 		end
 
 		@customize_script = nil
-		if customize_script && File.exists?(customize_script)
-			@customize_script = customize_script
+		if customize_rootfs
+			raise ArgumentError, "Bad script" unless File.exists?(customize_rootfs)
+			@customize_script = customize_rootfs
 		end
 
 		# This could be nil, we'll check at runtime
 		if debootstrap_pkg_cache and File.exists?(debootstrap_pkg_cache)
 			@debootstrap_pkg_cache = File.expand_path(debootstrap_pkg_cache)
+		end
+
+		if customize_pkgs
+			raise ArgumentError, 'Bad pkgs file' unless File.exists?(customize_pkgs)
+			c = File.read(customize_pkgs)
+			if c.start_with?('[') and c.strip.end_with?(']')
+				@customize_pkgs = JSON.parse(c) # JSON
+			elsif c.include?(',')
+				@customize_pkgs = c.trim.split(',') # CSV
+			else
+				@customize_pkgs = c.trim.lines() # newline seperated
+			end
 		end
 
 		@outfile = outfile
@@ -108,10 +119,10 @@ class DebootstrapBuilder < BaseBuilder
 	# Return all additional pkgs to be installed in the rootfs
 	#
 	def all_addon_pkgs()
-		all_pkgs = @islive ? ["live-boot", "live-boot-initramfs-tools"] : []
+		all_pkgs = []
 		all_pkgs = all_pkgs + ADDON_PKGS
 		all_pkgs = all_pkgs + [KERNEL_PKG_NAME[@distro]]
-		all_pkgs = all_pkgs + JSON.parse(File.read(ADDON_PKGS_FILE)) if File.exists?(ADDON_PKGS_FILE)
+		all_pkgs = all_pkgs + @customize_pkgs if @customize_pkgs
 		return all_pkgs.uniq
 	end
 

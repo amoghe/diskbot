@@ -18,14 +18,12 @@ PREREQS = {
 	'qemu-img':    'qemu-utils',
 }
 
-# Output files
-CWD = File.dirname(__FILE__)
-
 CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
 DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tgz"
 BIOS_VMDK_FILE_NAME  = "bios_disk.vmdk"
 UEFI_VMDK_FILE_NAME  = "uefi_disk.vmdk"
 
+# Rake always ensures CWD is the dir containing the Rakefile
 OUTPUT_DIR = 'output'
 Dir.mkdir(OUTPUT_DIR) rescue Errno::EEXIST
 
@@ -60,8 +58,8 @@ namespace :build do
 	file CACHED_DEBOOTSTRAP_PKGS_PATH do
 		builder = DebootstrapBuilder.new(distro,
 			CACHED_DEBOOTSTRAP_PKGS_PATH,
-			verbose: verbose,
-			livecd:  livecd)
+			customize_pkgs: ENV['CUSTOMIZE_PKGS'],
+			verbose: verbose)
 		builder.create_debootstrap_packages_tarball()
 	end
 
@@ -71,9 +69,9 @@ namespace :build do
 		builder = DebootstrapBuilder.new(distro,
 			DEBOOTSTRAP_ROOTFS_PATH,
 			debootstrap_pkg_cache: CACHED_DEBOOTSTRAP_PKGS_PATH,
-			customize_script: ENV['CUSTOMIZE_SCRIPT'],
-			verbose: verbose,
-			livecd:  livecd)
+			customize_pkgs:        ENV['CUSTOMIZE_PKGS'],
+			customize_rootfs:      ENV['CUSTOMIZE_SCRIPT'],
+			verbose: verbose)
 		builder.create_debootstrap_rootfs()
 	end
 
