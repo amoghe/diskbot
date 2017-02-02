@@ -4,6 +4,7 @@
 require_relative 'src/debootstrap_builder'
 require_relative 'src/disk_builder_bios'
 require_relative 'src/disk_builder_uefi'
+require_relative 'src/iso_builder'
 
 distro  = "ubuntu" # or "debian"
 livecd  = false
@@ -22,6 +23,7 @@ CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
 DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tgz"
 BIOS_VMDK_FILE_NAME  = "bios_disk.vmdk"
 UEFI_VMDK_FILE_NAME  = "uefi_disk.vmdk"
+LIVECD_ISO_FILE_NAME = "live-cd.iso"
 
 # Rake always ensures CWD is the dir containing the Rakefile
 OUTPUT_DIR = 'output'
@@ -31,6 +33,7 @@ CACHED_DEBOOTSTRAP_PKGS_PATH = File.join(OUTPUT_DIR, CACHED_DEBOOTSTRAP_PKGS_NAM
 DEBOOTSTRAP_ROOTFS_PATH = File.join(OUTPUT_DIR, DEBOOTSTRAP_ROOTFS_NAME)
 BIOS_VMDK_FILE_PATH  = File.join(OUTPUT_DIR, BIOS_VMDK_FILE_NAME)
 UEFI_VMDK_FILE_PATH  = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
+LIVECD_ISO_FILE_PATH = File.join(OUTPUT_DIR, LIVECD_ISO_FILE_NAME)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Prerequisite software check tasks
@@ -105,6 +108,11 @@ namespace :build do
 	desc 'Build basic rootfs using debootstrap (supports some env vars)'
 	task :rootfs => DEBOOTSTRAP_ROOTFS_PATH
 
+	desc 'Build (live cd) ISO using the debootstrap rootfs'
+	task :iso => DEBOOTSTRAP_ROOTFS_PATH do
+			IsoBuilder.new(DEBOOTSTRAP_ROOTFS_PATH, LIVECD_ISO_FILE_PATH).build
+	end
+
 	#
 	# Build vmdks.
 	#
@@ -143,7 +151,6 @@ namespace :build do
 				dev: ENV['dev'])
 			builder.build()
 		end
-
 	end
 
 end
