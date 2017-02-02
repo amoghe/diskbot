@@ -17,6 +17,8 @@ PREREQS = {
 	'losetup':     'mount',
 	'partx':       'util-linux',
 	'qemu-img':    'qemu-utils',
+	'mksquashfs':  'squashfs-tools',
+	'xorriso':     'xorriso',
 }
 
 CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
