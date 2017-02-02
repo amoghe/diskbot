@@ -1,9 +1,9 @@
 # Rake tasks for building the various parts of the system
 #
 
-require_relative 'debootstrap_builder'
-require_relative 'disk_builder_bios'
-require_relative 'disk_builder_uefi'
+require_relative 'src/debootstrap_builder'
+require_relative 'src/disk_builder_bios'
+require_relative 'src/disk_builder_uefi'
 
 distro  = "ubuntu" # or "debian"
 livecd  = false
