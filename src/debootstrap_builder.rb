@@ -72,6 +72,7 @@ class DebootstrapBuilder < BaseBuilder
 			else
 				@customize_pkgs = c.strip.lines() # newline seperated
 			end
+			@customize_pkgs.map!{ |p| p.strip! }
 		end
 
 		if overlay_rootfs
