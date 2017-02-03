@@ -1,3 +1,4 @@
+require 'find'
 require 'json'
 require 'open3'
 require 'pp'
@@ -33,6 +34,7 @@ class DebootstrapBuilder < BaseBuilder
 		debootstrap_pkg_cache: nil,
 		customize_pkgs:        nil,
 		customize_rootfs:      nil,
+		overlay_rootfs:        nil,
 		verbose:               false)
 
 		@distro  = distro
@@ -72,13 +74,19 @@ class DebootstrapBuilder < BaseBuilder
 			end
 		end
 
+		if overlay_rootfs
+			raise ArgumentError, 'Bad overlay dir' unless Dir.exists?(overlay_rootfs)
+			@overlay_dir = overlay_rootfs
+		end
+
 		@outfile = outfile
 	end
 
 	def create_debootstrap_rootfs()
 		header("Creating basic rootfs using debootstrap")
 
-		self.on_mounted_tmpfs do |tempdir|
+		size_mb = 1024 + (@overlay_dir ? size_of_dir(@overlay_dir) : 0)
+		self.on_mounted_tmpfs(size="#{size_mb}M") do |tempdir|
 			add_dummy_fstab(tempdir)
 			run_debootstrap(tempdir)
 			remove_dummy_fstab(tempdir)
@@ -86,6 +94,7 @@ class DebootstrapBuilder < BaseBuilder
 			add_admin_user(tempdir)
 			add_eth0_interface(tempdir)
 			customize_rootfs(tempdir)
+			overlay_files(tempdir)
 			package_rootfs(tempdir)
 		end
 
@@ -210,7 +219,7 @@ class DebootstrapBuilder < BaseBuilder
 	end
 
 	##
-	#
+	# Run customization script in the rootfs
 	#
 	def customize_rootfs(tempdir)
 		return unless @customize_script
@@ -218,6 +227,21 @@ class DebootstrapBuilder < BaseBuilder
 		execute!("cp #{@customize_script} #{tempdir}/tmp/customize.sh")
 		execute!("chmod a+x #{tempdir}/tmp")
 		execute!("chroot #{tempdir} /tmp/customize.sh")
+	end
+
+	##
+	# Overlay files onto the rootfs (if overlay dir was specified)
+	#
+	def overlay_files(tempdir)
+		if not @overlay_dir
+			info("No overlay dir specified, skipping overlay step")
+			return
+		end
+		notice("Copying files from the overlay dir: #{@overlay_dir}")
+		# Ensure a trailing sep at the end of src and dest paths to get rsync to
+		# sync the contents of src to dir.
+		@overlay_dir.chomp!('/') if @overlay_dir.end_with?('/')
+		execute!("rsync -avx #{@overlay_dir}/ #{tempdir}/")
 	end
 
 	##
@@ -271,6 +295,25 @@ class DebootstrapBuilder < BaseBuilder
 		end
 
 		notice("debootstrap packages cached at:" + @outfile)
+	end
+
+	##
+	# Returns size of dir tree in MB
+	#
+	def size_of_dir(dir)
+		total_size = 0
+		Find.find(dir) do |path|
+			if FileTest.directory?(path)
+				if File.basename(path)[0] == ?.
+					Find.prune       # Don't look any further into this directory.
+				else
+					next
+				end
+			else
+				total_size += FileTest.size(path)
+			end
+		end
+		return total_size / (1024 * 1024)
 	end
 
 end

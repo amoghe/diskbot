@@ -89,6 +89,7 @@ class BaseBuilder < PrettyPrinter
 
 	def on_mounted_tmpfs(size='1G', &block)
 		return unless block
+		size = ENV.fetch('TMPFSSIZE', size)
 		if Dir.exists?(ENV.fetch('TMPFSDIR', '/foobarbaz'))
 			self.__on_custom_tmpfs(ENV.fetch('TMPFSDIR', '/foobarbaz'), &block)
 		else
@@ -109,7 +110,7 @@ class BaseBuilder < PrettyPrinter
 	def __on_tmpfs(size='1G', &block)
 		Dir.mktmpdir do |tempdir|
 			begin
-				notice('Mounting tmpfs')
+				notice("Mounting tmpfs (size: #{size})")
 				# 1G should be sufficient. Our image shouldn't be larger than that ;)
 				execute!("mount -t tmpfs -o size=#{size} debootstrap-tmpfs #{tempdir}",	true)
 				yield tempdir if block_given?

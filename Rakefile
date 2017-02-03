@@ -76,6 +76,7 @@ namespace :build do
 			debootstrap_pkg_cache: CACHED_DEBOOTSTRAP_PKGS_PATH,
 			customize_pkgs:        ENV['CUSTOMIZE_PKGS'],
 			customize_rootfs:      ENV['CUSTOMIZE_SCRIPT'],
+			overlay_rootfs:        ENV['OVERLAY_ROOTFS'],
 			verbose: verbose)
 		builder.create_debootstrap_rootfs()
 	end
