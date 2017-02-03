@@ -68,9 +68,9 @@ class DebootstrapBuilder < BaseBuilder
 			if c.start_with?('[') and c.strip.end_with?(']')
 				@customize_pkgs = JSON.parse(c) # JSON
 			elsif c.include?(',')
-				@customize_pkgs = c.trim.split(',') # CSV
+				@customize_pkgs = c.strip.split(',') # CSV
 			else
-				@customize_pkgs = c.trim.lines() # newline seperated
+				@customize_pkgs = c.strip.lines() # newline seperated
 			end
 		end
 
