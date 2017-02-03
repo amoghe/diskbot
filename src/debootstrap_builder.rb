@@ -226,7 +226,7 @@ class DebootstrapBuilder < BaseBuilder
 		return unless @customize_script
 		notice('Running customization script in the rootfs (chroot)')
 		execute!("cp #{@customize_script} #{tempdir}/tmp/customize.sh")
-		execute!("chmod a+x #{tempdir}/tmp")
+		execute!("chmod a+x #{tempdir}/tmp/customize.sh")
 		execute!("chroot #{tempdir} /tmp/customize.sh")
 	end
 
