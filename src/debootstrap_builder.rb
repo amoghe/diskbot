@@ -245,8 +245,7 @@ class DebootstrapBuilder < BaseBuilder
 		notice("Copying files from the overlay dir: #{@overlay_dir}")
 		# Ensure a trailing sep at the end of src and dest paths to get rsync to
 		# sync the contents of src to dir.
-		@overlay_dir.chomp!('/') if @overlay_dir.end_with?('/')
-		execute!("rsync -avx #{@overlay_dir}/ #{tempdir}/")
+		execute!("rsync -avx #{@overlay_dir.chomp('/')}/ #{tempdir}/")
 	end
 
 	##
