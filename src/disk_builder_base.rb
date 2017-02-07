@@ -19,38 +19,37 @@ class DiskBuilder < BaseBuilder
 
 	##
 	# C'tor
-	# dev: [string] optionally specify block device to operate on
 	#
-	def initialize(image_path, part_layout_file, outfile, dev: nil)
-		[
-			[image_path      , 'image file'],
-			[part_layout_file, 'partition layout file'],
-		].each do |arg|
-			raise ArgumentError, "Missing arg : #{arg[1]}" if arg[0] == nil
-			raise ArgumentError, "Invalid file: #{arg[0]}" if not File.exists?(arg[0])
-		end
-
-		@image_tarball_path = image_path
+	# One of the following must be provided:
+	# dev: [string] block device we operate on
+	# outfile: [String] save block device as vmdk to this file
+	#
+	def initialize(image_path, playout_path, outfile:nil, dev: nil)
 		@tempfile = nil
 
-		if dev
-			@nosave = true # we're flashing a real device, don't save vmdk
-			@dev    = dev
+		raise ArgumentError, "Missing image file" unless File.exists?(image_path)
+		@image_tarball_path = image_path
+
+		raise ArgumentError, "No part layout file" unless File.exists?(playout_path)
+		parts = JSON.parse(File.read(playout_path))
+
+		raise ArgumentError, "Partition not an Array" unless parts.kind_of?(Array)
+		@partition_layout = (bootloader_partitions + parts).map { |p| DeepStruct.new(p) }
+		self.validate_partition_layout()
+
+		if outfile
+			@outfile = outfile
 		end
 
-		parts = JSON.parse(File.read(part_layout_file))
-		raise ArgumentError, "Partition layout must be an Array" unless parts.kind_of?(Array)
+		if dev
+			@dev = dev
+			self.validate_disk_size
+		end
 
-		# order is important, we'd like to keep bootloader partitions ahead
-		all_partitions = self.bootloader_partitions + parts
-		@partition_layout = all_partitions.map { |p| DeepStruct.new(p) }
-
-		validate_partition_layout
-
-		@outfile = outfile
-		if @dev.nil? and @outfile.nil?
+		if dev.nil? and outfile.nil?
 			raise ArgumentError, "No output file OR device specified!"
 		end
+
 	end
 
 	##
@@ -75,7 +74,32 @@ class DiskBuilder < BaseBuilder
 			info("No output file specified, skipping to output vmdk")
 			return
 		end
-		self.convert_to_vmdk(@outfile)
+
+		execute!("qemu-img convert -f raw -O vmdk #{@dev} #{@outfile}")
+		orig_user = `whoami`.strip
+		execute!("chown #{orig_user} #{@outfile}")
+
+	end
+
+	##
+	# Ensure that the specified disk is big enough
+	#
+	def validate_disk_size
+		return unless @dev
+		output, _, stat = Open3.capture3("blocksize --getsize64 #{@dev}")
+		raise RuntimeError, 'Unable determine dev size' unless stat.success?
+
+		sz_b = output.strip
+		sz_mb = sz_bytes / (1024*1024)
+
+		tot_mb = 0
+		@partition_layout.each { |p| tot_mb += p.size_mb }
+
+		if tot_mb <= sz_mb
+			raise RuntimeError, "Total size of partitions > block device size"
+		end
+
+		nil
 	end
 
 	##
@@ -227,6 +251,7 @@ class DiskBuilder < BaseBuilder
 	ensure
 		notice("Deleting loop disk (and its backing file)")
 		self.delete_loopback_disk
+		notice("Done " + ($!.nil? ? "(success)" : "(aborted due to errors)"))
 	end
 
 	##
@@ -393,20 +418,6 @@ class DiskBuilder < BaseBuilder
 		execute!('sync')
 
 		nil
-	end
-
-	##
-	# Create a vmdk
-	#
-	def convert_to_vmdk(dest)
-		if @nosave
-			info("Skipping save to vmdk since device was specified")
-			return
-		end
-
-		execute!("qemu-img convert -f raw -O vmdk #{@dev} #{dest}")
-		orig_user = `whoami`.strip
-		execute!("chown #{orig_user} #{dest}")
 	end
 
 	##

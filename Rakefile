@@ -10,41 +10,41 @@ distro  = "ubuntu" # or "debian"
 livecd  = false
 verbose = ENV.has_key?('VERBOSE')
 
-PREREQS = {
-	# tool:        pkgs_that_provides_it_on_xenial
-	'debootstrap': 'debootstrap',
-	'fallocate':   'util-linux',
-	'losetup':     'mount',
-	'partx':       'util-linux',
-	'qemu-img':    'qemu-utils',
-	'mksquashfs':  'squashfs-tools',
-	'xorriso':     'xorriso',
-}
-
-CACHED_DEBOOTSTRAP_PKGS_NAME = "debootstrap_pkgs.tgz"
-DEBOOTSTRAP_ROOTFS_NAME = "debootstrap_rootfs.tgz"
-BIOS_VMDK_FILE_NAME  = "bios_disk.vmdk"
-UEFI_VMDK_FILE_NAME  = "uefi_disk.vmdk"
-LIVECD_ISO_FILE_NAME = "live-cd.iso"
-
 # Rake always ensures CWD is the dir containing the Rakefile
 OUTPUT_DIR = 'output'
 Dir.mkdir(OUTPUT_DIR) rescue Errno::EEXIST
-
-CACHED_DEBOOTSTRAP_PKGS_PATH = File.join(OUTPUT_DIR, CACHED_DEBOOTSTRAP_PKGS_NAME)
-DEBOOTSTRAP_ROOTFS_PATH = File.join(OUTPUT_DIR, DEBOOTSTRAP_ROOTFS_NAME)
-BIOS_VMDK_FILE_PATH  = File.join(OUTPUT_DIR, BIOS_VMDK_FILE_NAME)
-UEFI_VMDK_FILE_PATH  = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
-LIVECD_ISO_FILE_PATH = File.join(OUTPUT_DIR, LIVECD_ISO_FILE_NAME)
+# File names
+DEBOOTSTRAP_CACHE_NAME = "debootstrap_pkgs.tgz"
+ROOTFS_TGZ_NAME        = "debootstrap_rootfs.tgz"
+BIOS_VMDK_FILE_NAME    = "bios_disk.vmdk"
+UEFI_VMDK_FILE_NAME    = "uefi_disk.vmdk"
+LIVECD_ISO_FILE_NAME   = "live-cd.iso"
+# File paths (in the output dir)
+DEBOOTSTRAP_CACHE_PATH = File.join(OUTPUT_DIR, DEBOOTSTRAP_CACHE_NAME)
+ROOTFS_TGZ_PATH        = File.join(OUTPUT_DIR, ROOTFS_TGZ_NAME)
+BIOS_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, BIOS_VMDK_FILE_NAME)
+UEFI_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
+LIVECD_ISO_FILE_PATH   = File.join(OUTPUT_DIR, LIVECD_ISO_FILE_NAME)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Prerequisite software check tasks
 #
 namespace :prereqs do
 
-	desc "Check prerequisite software is present"
+	desc "Check if prerequisite software is present"
 	task :check do
-		PREREQS.keys.each do |tool|
+		{
+			# tool:        pkgs_that_provides_it_on_xenial
+			'blockdev':    'util-linux',
+			'debootstrap': 'debootstrap',
+			'fallocate':   'util-linux',
+			'losetup':     'mount',
+			'partx':       'util-linux',
+			'qemu-img':    'qemu-utils',
+			'mksquashfs':  'squashfs-tools',
+			'xorriso':     'xorriso',
+		}\
+		.keys.each do |tool|
 			sh("which #{tool}") do |ok, res|
 				puts "Missing #{tool}." \
 				"Run: 'sudo apt-get install #{PREREQS[tool]}'" if not ok
@@ -60,9 +60,9 @@ end
 namespace :build do
 
 	# How to build a cache of pkgs needed for speeding up debootstrap runs.
-	file CACHED_DEBOOTSTRAP_PKGS_PATH do
+	file DEBOOTSTRAP_CACHE_PATH do
 		builder = DebootstrapBuilder.new(distro,
-			CACHED_DEBOOTSTRAP_PKGS_PATH,
+			DEBOOTSTRAP_CACHE_PATH,
 			customize_pkgs: ENV['CUSTOMIZE_PKGS'],
 			verbose: verbose)
 		builder.create_debootstrap_packages_tarball()
@@ -70,10 +70,10 @@ namespace :build do
 
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
-	file DEBOOTSTRAP_ROOTFS_PATH => CACHED_DEBOOTSTRAP_PKGS_PATH do
+	file ROOTFS_TGZ_PATH => DEBOOTSTRAP_CACHE_PATH do
 		builder = DebootstrapBuilder.new(distro,
-			DEBOOTSTRAP_ROOTFS_PATH,
-			debootstrap_pkg_cache: CACHED_DEBOOTSTRAP_PKGS_PATH,
+			ROOTFS_TGZ_PATH,
+			debootstrap_pkg_cache: DEBOOTSTRAP_CACHE_PATH,
 			customize_pkgs:        ENV['CUSTOMIZE_PKGS'],
 			customize_rootfs:      ENV['CUSTOMIZE_SCRIPT'],
 			overlay_rootfs:        ENV['OVERLAY_ROOTFS'],
@@ -82,20 +82,18 @@ namespace :build do
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file UEFI_VMDK_FILE_PATH => DEBOOTSTRAP_ROOTFS_PATH do
-		builder = UDB.new(DEBOOTSTRAP_ROOTFS_PATH,
-			ENV['PARTITION_LAYOUT'],
-			UEFI_VMDK_FILE_PATH,
-			dev: ENV.fetch('dev', nil))
+	file UEFI_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
+		builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
+			outfile: UEFI_VMDK_FILE_PATH,
+			dev:     ENV.fetch('dev', nil))
 		builder.build()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file BIOS_VMDK_FILE_PATH => DEBOOTSTRAP_ROOTFS_PATH do
-		builder = BDB.new(DEBOOTSTRAP_ROOTFS_PATH,
-			ENV['PARTITION_LAYOUT'],
-			BIOS_VMDK_FILE_PATH,
-			dev: ENV.fetch('dev', nil))
+	file BIOS_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
+		builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
+			outfile: BIOS_VMDK_FILE_PATH,
+			dev:     ENV.fetch('dev', nil))
 		builder.build()
 	end
 
@@ -103,17 +101,17 @@ namespace :build do
 	# Build a tarball of cached deb packages usable by debootstrap.
 	#
 	desc 'Build debootstrap package cache (supports some env vars)'
-	task :cache => CACHED_DEBOOTSTRAP_PKGS_PATH
+	task :cache => DEBOOTSTRAP_CACHE_PATH
 
 	#
 	# Build a basic rootfs using debootstrap.
 	#
 	desc 'Build basic rootfs using debootstrap (supports some env vars)'
-	task :rootfs => DEBOOTSTRAP_ROOTFS_PATH
+	task :rootfs => ROOTFS_TGZ_PATH
 
 	desc 'Build (live cd) ISO using the debootstrap rootfs'
-	task :iso => DEBOOTSTRAP_ROOTFS_PATH do
-			IsoBuilder.new(DEBOOTSTRAP_ROOTFS_PATH, LIVECD_ISO_FILE_PATH).build
+	task :iso => ROOTFS_TGZ_PATH do
+			IsoBuilder.new(ROOTFS_TGZ_PATH, LIVECD_ISO_FILE_PATH).build
 	end
 
 	#
@@ -133,12 +131,11 @@ namespace :build do
 	namespace :device do
 		desc 'Build a bootable UEFI device using the debootstrap rootfs'
 		task :uefi do
-			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
-				raise ArgumentError, "Invalid device specified"
-			end
-			builder = UDB.new(DEBOOTSTRAP_ROOTFS_PATH,
+			raise ArgumentError, "No device specified" if ENV['dev'].nil?
+			raise ArgumentError, "Bad device file" unless File.exists?(ENV['dev'])
+
+			builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH,
 				ENV['PARTITION_LAYOUT'],
-				nil, # no outfile needed
 				dev: ENV['dev'])
 			builder.build()
 		end
@@ -148,9 +145,8 @@ namespace :build do
 			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
 				raise ArgumentError, "Invalid device specified"
 			end
-			builder = BDB.new(DEBOOTSTRAP_ROOTFS_PATH,
+			builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH,
 				ENV['PARTITION_LAYOUT'],
-				nil, # no outfile needed
 				dev: ENV['dev'])
 			builder.build()
 		end
@@ -165,12 +161,12 @@ namespace :clean do
 
 	desc "Clean the debootstrap rootfs file"
 	task :cache do
-		sh("rm -f #{CACHED_DEBOOTSTRAP_PKGS_PATH}")
+		sh("rm -f #{DEBOOTSTRAP_CACHE_PATH}")
 	end
 
 	desc "Clean the debootstrap rootfs file"
 	task :rootfs do
-		sh("rm -f #{DEBOOTSTRAP_ROOTFS_PATH}")
+		sh("rm -f #{ROOTFS_TGZ_PATH}")
 	end
 
 	desc "Clean the ISO file"
