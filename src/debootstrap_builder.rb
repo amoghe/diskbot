@@ -83,6 +83,10 @@ class DebootstrapBuilder < BaseBuilder
 		@outfile = outfile
 	end
 
+	##
+	# Create the rootfs using debootstrap, then perform subsequent operations
+	# on it to modify it as needed.
+	#
 	def create_debootstrap_rootfs()
 		header("Creating basic rootfs using debootstrap")
 
@@ -94,8 +98,8 @@ class DebootstrapBuilder < BaseBuilder
 			add_apt_sources(tempdir)
 			add_admin_user(tempdir)
 			add_eth0_interface(tempdir)
-			customize_rootfs(tempdir)
 			overlay_files(tempdir)
+			customize_rootfs(tempdir)
 			package_rootfs(tempdir)
 		end
 
