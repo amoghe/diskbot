@@ -39,6 +39,8 @@ namespace :prereqs do
 			'debootstrap': 'debootstrap',
 			'fallocate':   'util-linux',
 			'losetup':     'mount',
+			'mkfs.ext4':   'e2fsprogs',
+			'parted':      'parted',
 			'partx':       'util-linux',
 			'qemu-img':    'qemu-utils',
 			'mksquashfs':  'squashfs-tools',
