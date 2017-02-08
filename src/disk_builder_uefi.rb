@@ -70,9 +70,11 @@ class UefiDiskBuilder < DiskBuilder
 						"--prefix=\"/EFI/BOOT\""	,
 						"--format=#{GRUB_ARCHITECTURE}"	,
 						# modules to bake into the img
-						"cat echo ext2 fat search part_gpt part_msdos efifwsetup efi_gop efi_uga",
-						"gfxterm gfxterm_background gfxterm_menu test all_video loadenv",
-						"normal boot configfile linux linuxefi lvm"
+						"efifwsetup efi_gop efi_uga linuxefi",
+						"ext2 fat part_gpt part_msdos lvm",
+						"gfxterm gfxterm_background gfxterm_menu test all_video",
+						"loadenv normal boot configfile linux cat echo search",
+						"sh quit help reboot datetime",
 					].join(' '))
 				end
 
