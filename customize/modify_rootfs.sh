@@ -10,10 +10,8 @@ function update_locales() {
 }
 
 function lvm_initramfs_hook() {
-  LVM_INITRAMFS_HOOK=/etc/initramfs-tools/scripts/local-top/lvm2
-  echo "#!/bin/bash"  >  LVM_INITRAMFS_HOOK
-  echo "vgchange -ay" >> LVM_INITRAMFS_HOOK
-  chmod a+x LVM_INITRAMFS_HOOK
+  LVM_INITRAMFS_HOOK=/usr/share/initramfs-tools/scripts/local-top/lvm2
+  sed 's/lvchange_activate() {/vgchange -ay\nlvchange_activate() {/' $LVM_INITRAMFS_HOOK
   update-initramfs -u
 }
 
