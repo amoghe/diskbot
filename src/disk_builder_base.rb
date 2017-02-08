@@ -86,7 +86,9 @@ class DiskBuilder < BaseBuilder
 	#
 	def validate_disk_size
 		return unless @dev
-		output, _, stat = Open3.capture3("blocksize --getsize64 #{@dev}")
+
+		# we can't use execute!() since we want to capture the output of the cmd
+		output, _, stat = Open3.capture3("sudo blockdev --getsize64 #{@dev}")
 		raise RuntimeError, 'Unable determine dev size' unless stat.success?
 
 		dev_mib = output.strip.to_i / (1024*1024)
@@ -505,6 +507,7 @@ class DiskBuilder < BaseBuilder
 		slept_secs = 0
 		quantum = 0.5
 
+		execute!("partprobe #{@dev}")
 		while slept_secs <= timeout_secs
 			return nil if File.exists?(dev_path)
 			sleep(quantum)
