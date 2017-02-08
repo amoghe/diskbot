@@ -11,7 +11,7 @@ function update_locales() {
 
 function lvm_initramfs_hook() {
   LVM_INITRAMFS_HOOK=/usr/share/initramfs-tools/scripts/local-top/lvm2
-  sed 's/lvchange_activate() {/vgchange -ay\nlvchange_activate() {/' $LVM_INITRAMFS_HOOK
+  sed 's/lvchange_activate() {/vgchange -ay\n\nlvchange_activate() {/' $LVM_INITRAMFS_HOOK
   update-initramfs -u
 }
 
