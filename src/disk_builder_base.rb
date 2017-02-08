@@ -2,6 +2,7 @@ require 'open3'
 require 'pp'
 require 'ostruct'
 require 'tempfile'
+require 'json'
 
 require_relative 'base_builder'
 
@@ -35,6 +36,7 @@ class DiskBuilder < BaseBuilder
 
 		raise ArgumentError, "Partition not an Array" unless parts.kind_of?(Array)
 		@partition_layout = (bootloader_partitions + parts).map { |p| DeepStruct.new(p) }
+
 		self.validate_partition_layout()
 
 		if outfile
@@ -91,9 +93,9 @@ class DiskBuilder < BaseBuilder
 		output, _, stat = Open3.capture3("sudo blockdev --getsize64 #{@dev}")
 		raise RuntimeError, 'Unable determine dev size' unless stat.success?
 
-		dev_mib = output.strip.to_i / (1024*1024)
+		dev_mib = output.strip.to_i / (1024*1024) # space on device (MiB)
+		tot_mib = FIRST_PARTITION_OFFSET # total needed space (MiB)
 
-		tot_mib = 0
 		@partition_layout.each { |p| tot_mib += p.size_mb }
 
 		if tot_mib >= dev_mib
