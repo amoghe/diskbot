@@ -46,10 +46,10 @@ namespace :prereqs do
 			'mksquashfs':  'squashfs-tools',
 			'xorriso':     'xorriso',
 		}\
-		.keys.each do |tool|
+		.each_pair do |tool, pkg|
 			sh("which #{tool}") do |ok, res|
 				puts "Missing #{tool}." \
-				"Run: 'sudo apt-get install #{PREREQS[tool]}'" if not ok
+				"Run: 'sudo apt-get install #{pkg}'" if not ok
 			end
 		end
 	end
