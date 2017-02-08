@@ -31,7 +31,7 @@ class UefiDiskBuilder < DiskBuilder
 	#
 	def install_bootloader
 
-		tools_dir = File.join(File.dirname(__FILE__), "scratch")
+		tools_dir = File.join(File.dirname(__FILE__), "tools")
 		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
 		self.download_bootloader_tools(tools_dir)
 
