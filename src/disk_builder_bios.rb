@@ -32,9 +32,14 @@ class BiosDiskBuilder < DiskBuilder
 
 		verbose = false
 
-		tools_dir = File.join(File.dirname(__FILE__), "tools")
-		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
-		self.download_bootloader_tools(tools_dir)
+		if @use_systemwide_grub_tools
+			info("Using existing grub tools")
+			tools_dir = '/'
+		else
+			tools_dir = File.join(File.dirname(__FILE__), "tools")
+			execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
+			self.download_bootloader_tools(tools_dir)
+		end
 
 		grub_part = self.first_grub_cfg_partition()
 
@@ -106,7 +111,7 @@ class BiosDiskBuilder < DiskBuilder
 
 	ensure
 		# Delete the bootloader tools
-		execute!("rm -rf #{tools_dir}")
+		execute!("rm -rf #{tools_dir}") unless @use_systemwide_grub_tools
 	end
 
 	##

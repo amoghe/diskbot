@@ -31,9 +31,14 @@ class UefiDiskBuilder < DiskBuilder
 	#
 	def install_bootloader
 
-		tools_dir = File.join(File.dirname(__FILE__), "tools")
-		execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
-		self.download_bootloader_tools(tools_dir)
+		if @use_systemwide_grub_tools
+			info("Using existing grub tools")
+			tools_dir = '/'
+		else
+			tools_dir = File.join(File.dirname(__FILE__), "tools")
+			execute!("mkdir -p #{tools_dir}", false) # Don't be root for this dir
+			self.download_bootloader_tools(tools_dir)
+		end
 
 		esp_part = @partition_layout.find { |p| p.esp }
 		raise RuntimeError, "Missing ESP partition" if not esp_part
@@ -83,7 +88,7 @@ class UefiDiskBuilder < DiskBuilder
 
 	ensure
 		# Clean up temp dir where we downloaded grub tools
-		execute!("rm -rf #{tools_dir}")
+		execute!("rm -rf #{tools_dir}") unless @use_systemwide_grub_tools
 	end
 
 	##
