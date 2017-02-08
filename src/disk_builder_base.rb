@@ -89,14 +89,14 @@ class DiskBuilder < BaseBuilder
 		output, _, stat = Open3.capture3("blocksize --getsize64 #{@dev}")
 		raise RuntimeError, 'Unable determine dev size' unless stat.success?
 
-		sz_b = output.strip
-		sz_mb = sz_bytes / (1024*1024)
+		dev_mib = output.strip.to_i / (1024*1024)
 
-		tot_mb = 0
-		@partition_layout.each { |p| tot_mb += p.size_mb }
+		tot_mib = 0
+		@partition_layout.each { |p| tot_mib += p.size_mb }
 
-		if tot_mb <= sz_mb
-			raise RuntimeError, "Total size of partitions > block device size"
+		if tot_mib >= dev_mib
+			warn("Insufficient space! need MiB: #{tot_mib}, device MiB: #{dev_mib}")
+			raise RuntimeError, "Total size #{tot_mib} > block device size #{dev_mib}"
 		end
 
 		nil
@@ -141,7 +141,7 @@ class DiskBuilder < BaseBuilder
 		lvm_parts.each do |p|
 			total_mb = 0
 			p.lvm.volumes.each { |v| total_mb += v.size_mb }
-			if total_mb > (p.size_mb + 0.10*p.size_mb) # addl 10% for lvm metadata
+			if total_mb > (p.size_mb + 0.01*p.size_mb) # addl 1% for lvm metadata
 				raise RuntimeError, "VG #{p.label} has more LVs that capacity"
 			end
 		end
