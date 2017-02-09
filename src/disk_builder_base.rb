@@ -441,8 +441,11 @@ class DiskBuilder < BaseBuilder
 	# bootable working OS - TODO: install OS on all eligible partitions).
 	#
 	def grub_cfg_contents
-		kernel_opts_normal = [ 'ro', 'quiet', 'splash' ].join(' ')
-		kernel_opts_debug  = [ 'ro', 'debug', 'console=tty0' ].join(' ')
+		@old_dev_names = true
+		kopts = ['ro']
+		kopts = kopts + ['net.ifnames=0', 'biosdevname=0'] if @old_dev_names
+		kernel_opts_normal = (kopts + [ 'quiet', 'splash' ]).join(' ')
+		kernel_opts_debug  = (kopts + [ 'debug', 'console=tty0' ]).join(' ')
 
 		lines = [
 			"set default=0",
@@ -457,6 +460,14 @@ class DiskBuilder < BaseBuilder
 				"  insmod ext2",
 				"  search  --label --set=root --no-floppy #{os_part.label}",
 				"  linux   /vmlinuz root=LABEL=#{os_part.label} #{kernel_opts_normal}",
+				"  initrd  /initrd.img",
+				"}",
+				"",
+				"# #{os_part.label} (debug)",
+				"menuentry \"#{os_part.label} (debug)\" {",
+				"  insmod ext2",
+				"  search  --label --set=root --no-floppy #{os_part.label}",
+				"  linux   /vmlinuz root=LABEL=#{os_part.label} #{kernel_opts_debug}",
 				"  initrd  /initrd.img",
 				"}",
 				"",
