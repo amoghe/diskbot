@@ -206,7 +206,7 @@ class DebootstrapBuilder < BaseBuilder
 			"admin"
 		].join(" ")
 
-		execute!("sudo #{useradd_cmd}")
+		execute!("#{useradd_cmd}")
 	end
 
 	##
