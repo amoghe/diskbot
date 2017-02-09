@@ -31,7 +31,7 @@ class DiskBuilder < BaseBuilder
 		raise ArgumentError, "Missing image file" unless File.exists?(image_path)
 		@image_tarball_path = image_path
 
-		raise ArgumentError, "No part layout file" unless File.exists?(playout_path)
+		raise ArgumentError, "Missing layout file" unless File.exists?(playout_path)
 		parts = JSON.parse(File.read(playout_path))
 
 		raise ArgumentError, "Partition not an Array" unless parts.kind_of?(Array)
