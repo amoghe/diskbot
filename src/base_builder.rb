@@ -27,18 +27,21 @@ class PrettyPrinter
 		line = "[INFO] #{line}"
 		line = STDOUT.tty? ? green(line) : line
 		puts(line)
+		STDOUT.flush() if not STDOUT.tty? # jenkins invocations
 	end
 
 	def warn(line)
 		line = "[WARN] #{line}"
 		line = STDOUT.tty? ? red(line) : line
 		puts("\n" + line)
+		STDOUT.flush() if not STDOUT.tty? # jenkins invocations
 	end
 
 	def notice(line)
 		line = "[NOTI] #{line}"
 		line = STDOUT.tty? ? blue(line) : line
 		puts("\n" + line)
+		STDOUT.flush() if not STDOUT.tty? # jenkins invocations
 	end
 
 	def header(line)
@@ -48,6 +51,7 @@ class PrettyPrinter
 		puts("")
 		puts(STDOUT.tty? ? yellow("#{l_msg}#{r_msg}") : "#{l_msg}#{r_msg}")
 		puts("")
+		STDOUT.flush() if not STDOUT.tty? # jenkins invocations
 	end
 
 end
