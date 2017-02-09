@@ -46,7 +46,7 @@ class PrettyPrinter
 		r_msg = "- " * ((80 - l_msg.length)/2)
 
 		puts("")
-		puts(yellow("#{l_msg}#{r_msg}"))
+		puts(STDOUT.tty? ? yellow("#{l_msg}#{r_msg}") : "#{l_msg}#{r_msg}")
 		puts("")
 	end
 
