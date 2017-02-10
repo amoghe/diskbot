@@ -14,8 +14,8 @@ verbose = ENV.has_key?('VERBOSE')
 OUTPUT_DIR = 'output'
 Dir.mkdir(OUTPUT_DIR) rescue Errno::EEXIST
 # File names
-DEBOOTSTRAP_CACHE_NAME = "debootstrap_pkgs.tgz"
-ROOTFS_TGZ_NAME        = "debootstrap_rootfs.tgz"
+DEBOOTSTRAP_CACHE_NAME = "debootstrap_cache.tgz"
+ROOTFS_TGZ_NAME        = "rootfs.tgz"
 BIOS_VMDK_FILE_NAME    = "bios_disk.vmdk"
 UEFI_VMDK_FILE_NAME    = "uefi_disk.vmdk"
 LIVECD_ISO_FILE_NAME   = "live-cd.iso"
