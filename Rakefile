@@ -143,7 +143,7 @@ namespace :build do
 		end
 
 		desc 'Build a bootable BIOS device using the debootstrap rootfs'
-		task :bios => BIOS_VMDK_FILE_PATH do
+		task :bios do
 			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
 				raise ArgumentError, "Invalid device specified"
 			end
