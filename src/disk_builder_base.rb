@@ -309,13 +309,14 @@ class DiskBuilder < BaseBuilder
 	def setup_lvm_on_partition(part)
 		return unless part.lvm
 		pvol = "/dev/disk/by-partlabel/#{part.label}"
-		execute!("pvcreate #{pvol}")
-		execute!("vgcreate #{part.lvm.vg_name} #{pvol}")
+		execute!("pvcreate -y #{pvol}")
+		execute!("vgcreate -y #{part.lvm.vg_name} #{pvol}")
 
 		notice("Creating LVM partitions")
 		part.lvm.volumes.each do |vol|
 			info("Creating #{vol.label} volume")
-			execute!("lvcreate --name #{vol.label} --size #{vol.size_mb}MiB #{part.lvm.vg_name}")
+			execute!("lvcreate -y --name #{vol.label} --size #{vol.size_mb}MiB #{part.lvm.vg_name}")
+			next if not vol.fs
 			execute!("mkfs.#{vol.fs} -L \"#{vol.label}\" /dev/#{part.lvm.vg_name}/#{vol.label}")
 		end
 
@@ -520,7 +521,7 @@ class DiskBuilder < BaseBuilder
 		slept_secs = 0
 		quantum = 0.5
 
-		execute!("partprobe #{@dev}")
+		execute!("udevadm trigger")
 		while slept_secs <= timeout_secs
 			return nil if File.exists?(dev_path)
 			sleep(quantum)
