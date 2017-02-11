@@ -85,7 +85,8 @@ namespace :build do
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file UEFI_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
-		builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
+		builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH,
+			ENV.fetch('PARTITION_LAYOUT', ''),
 			outfile: UEFI_VMDK_FILE_PATH,
 			dev:     ENV.fetch('dev', nil))
 		builder.build()
@@ -93,7 +94,8 @@ namespace :build do
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file BIOS_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
-		builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
+		builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH,
+			ENV.fetch('PARTITION_LAYOUT', ''),
 			outfile: BIOS_VMDK_FILE_PATH,
 			dev:     ENV.fetch('dev', nil))
 		builder.build()
