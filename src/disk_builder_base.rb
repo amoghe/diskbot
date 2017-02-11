@@ -287,9 +287,9 @@ class DiskBuilder < BaseBuilder
 			if not part.fs
 				warn("No filesystem specified for #{part.label}. Skipping FS")
 			elsif part.fs == 'fat32'
-				execute!("mkfs.fat -F32 -n#{part.label} #{label_path}")
+				execute!("mkfs.fat -F -F32 -n#{part.label} #{label_path}")
 			elsif part.fs == 'fat16'
-				execute!("mkfs.fat -F16 -n#{part.label} #{label_path}")
+				execute!("mkfs.fat -F -F16 -n#{part.label} #{label_path}")
 			else
 				execute!("mkfs.#{part.fs} -L \"#{part.label}\" #{label_path}")
 			end
