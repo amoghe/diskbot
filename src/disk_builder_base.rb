@@ -243,7 +243,11 @@ class DiskBuilder < BaseBuilder
 
 		notice("Creating vmdk from raw disk")
 		self.create_vmdk
+	ensure
+		notice("Deactivating partitions")
+		self.deactivate_partitions
 	end
+
 
 	##
 	# Execute the specified block having setup a loopback device as @dev
@@ -319,7 +323,21 @@ class DiskBuilder < BaseBuilder
 			next if not vol.fs
 			execute!("mkfs.#{vol.fs} -L \"#{vol.label}\" /dev/#{part.lvm.vg_name}/#{vol.label}")
 		end
+	end
 
+	##
+	# Deactivetes partitions (normal and lvm)
+	#
+	def deactivate_partitions
+		# First deactive lvm vgs that may have been setup during
+		lvm_parts = @partition_layout.select { |p| p.lvm }
+		lvm_volgs = lvm_parts.map { |vg| vg.vg_name }
+		lvm_volgs.each { |name| execute!("vgchange -an #{name}") }
+		# Then run vgexport. This allows the pv to be disconnected
+		execute!("vgexport -a")
+		# Then deal with removal of normal partitions from the device
+		# else we leak /dev/loop0p{1,2,3}
+		execute!("partx -d -v #{@dev}")
 	end
 
 	##
@@ -342,7 +360,6 @@ class DiskBuilder < BaseBuilder
 	# Delete the loopback disk device
 	#
 	def delete_loopback_disk
-		execute!("sudo partx -d -v #{@dev}") # else we leak /dev/loop0p{1,2,3}
 		execute!("losetup -d #{@dev}") if @dev && @dev.length > 0
 		execute!("rm -f #{@tempfile}", false) if @tempfile && @tempfile.length > 0
 	end
