@@ -26,6 +26,14 @@ BIOS_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, BIOS_VMDK_FILE_NAME)
 UEFI_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
 LIVECD_ISO_FILE_PATH   = File.join(OUTPUT_DIR, LIVECD_ISO_FILE_NAME)
 
+def ensure_env(vars)
+	vars.each do |key|
+		next if ENV.has_key?(key)
+		puts("Please set env var: #{key}")
+		sys.exit(1)
+	end
+end
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Prerequisite software check tasks
 #
@@ -63,6 +71,7 @@ namespace :build do
 
 	# How to build a cache of pkgs needed for speeding up debootstrap runs.
 	file DEBOOTSTRAP_CACHE_PATH do
+		ensure_env(['CUSTOMIZE_PKGS'])
 		builder = DebootstrapBuilder.new(distro,
 			DEBOOTSTRAP_CACHE_PATH,
 			customize_pkgs: ENV['CUSTOMIZE_PKGS'],
@@ -73,6 +82,7 @@ namespace :build do
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
 	file ROOTFS_TGZ_PATH => DEBOOTSTRAP_CACHE_PATH do
+	ensure_env(['CUSTOMIZE_PKGS', 'CUSTOMIZE_SCRIPT', 'OVERLAY_ROOTFS'])
 		builder = DebootstrapBuilder.new(distro,
 			ROOTFS_TGZ_PATH,
 			debootstrap_pkg_cache: DEBOOTSTRAP_CACHE_PATH,
@@ -85,19 +95,19 @@ namespace :build do
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file UEFI_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
-		builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH,
-			ENV.fetch('PARTITION_LAYOUT', ''),
+		ensure_env(['PARTITION_LAYOUT', 'DEVICE'])
+		builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
 			outfile: UEFI_VMDK_FILE_PATH,
-			dev:     ENV.fetch('dev', nil))
+			dev:     ENV['DEVICE'])
 		builder.build()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file BIOS_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
-		builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH,
-			ENV.fetch('PARTITION_LAYOUT', ''),
+		ensure_env(['PARTITION_LAYOUT', 'DEVICE'])
+		builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
 			outfile: BIOS_VMDK_FILE_PATH,
-			dev:     ENV.fetch('dev', nil))
+			dev:     ENV['DEVICE'])
 		builder.build()
 	end
 
@@ -135,23 +145,19 @@ namespace :build do
 	namespace :device do
 		desc 'Build a bootable UEFI device using the debootstrap rootfs'
 		task :uefi do
-			raise ArgumentError, "No device specified" if ENV['dev'].nil?
-			raise ArgumentError, "Bad device file" unless File.exists?(ENV['dev'])
-
+			ensure_env(['DEVICE'])
 			builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH,
 				ENV['PARTITION_LAYOUT'],
-				dev: ENV['dev'])
+				dev: ENV['DEVICE'])
 			builder.build()
 		end
 
 		desc 'Build a bootable BIOS device using the debootstrap rootfs'
 		task :bios do
-			if ENV['dev'].nil? or not File.exists?(ENV['dev'])
-				raise ArgumentError, "Invalid device specified"
-			end
+			ensure_env(['DEVICE'])
 			builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH,
 				ENV['PARTITION_LAYOUT'],
-				dev: ENV['dev'])
+				dev: ENV['DEVICE'])
 			builder.build()
 		end
 	end
@@ -178,16 +184,21 @@ namespace :clean do
 		sh("rm -f #{LIVECD_ISO_FILE_PATH}")
 	end
 
-	desc "Clean the UEFI disk file"
-	task :vmdk_uefi do
-		sh("rm -f #{UEFI_VMDK_FILE_PATH}")
+	namespace :vmdk do
+
+		desc "Clean the UEFI disk file"
+		task :uefi do
+			sh("rm -f #{UEFI_VMDK_FILE_PATH}")
+		end
+
+		desc "Clean the BIOS disk file"
+		task :bios do
+			sh("rm -f #{BIOS_VMDK_FILE_PATH}")
+		end
+
+		desc "Clean all VMDK disk files"
+		task :all => [:bios, :uefi]
+
 	end
 
-	desc "Clean the BIOS disk file"
-	task :vmdk_bios do
-		sh("rm -f #{BIOS_VMDK_FILE_PATH}")
-	end
-
-	desc "Clean all disk files"
-	task :disks => [:vmdk_uefi, :vmdk_bios]
 end
