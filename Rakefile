@@ -26,11 +26,12 @@ BIOS_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, BIOS_VMDK_FILE_NAME)
 UEFI_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
 LIVECD_ISO_FILE_PATH   = File.join(OUTPUT_DIR, LIVECD_ISO_FILE_NAME)
 
+# Helper to test if the env contains all the vars specified
 def ensure_env(vars)
-	vars.each do |key|
-		next if ENV.has_key?(key)
-		puts("Please set env var: #{key}")
-		sys.exit(1)
+	vars.each do |var|
+		next if ENV.has_key?(var)
+		puts("Please set env var: #{var}")
+		exit(1)
 	end
 end
 
@@ -199,6 +200,30 @@ namespace :clean do
 		desc "Clean all VMDK disk files"
 		task :all => [:bios, :uefi]
 
+	end
+
+	task :device do
+		ensure_env(["DEVICE"])
+		dev = ENV['DEVICE']
+		raise ArgumentError, "Invalid device " unless File.exists?(dev)
+
+		pvs = []
+		vgs = []
+		Dir.glob("#{dev}p*") do |part|
+			pv = `sudo pvs -S pv_name=#{part} -o pv_name --noheadings | grep #{part}`.strip
+			next if pv.empty? # grep didnt find anything, so this isn't a pv
+			pvs << pv
+
+			vg_name = `sudo pvs -S pv_name=#{part} -o vg_name --noheadings`.strip
+			next if vg_name.empty?
+			vgs << vg_name
+		end
+
+		vgs.uniq.each { |vg| sh("sudo vgchange -an #{vg}") }
+		vgs.uniq.each { |vg| sh("sudo vgremove -y  #{vg}") }
+		pvs.uniq.each { |pv| sh("sudo pvremove #{pv}") }
+		sh("sudo partx -d #{dev}")
+		sh("sudo dd if=/dev/zero of=#{dev} bs=4M output=progress")
 	end
 
 end
