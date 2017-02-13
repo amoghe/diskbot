@@ -468,7 +468,7 @@ class DiskBuilder < BaseBuilder
 		lines = [
 			"set default=0",
 			"set gfxpayload=1024x768x24",
-			""
+			"set timeout=15",
 		]
 
 		self.all_os_partitions.each { |os_part|
