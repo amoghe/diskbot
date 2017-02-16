@@ -23,9 +23,14 @@ class DiskBuilder < BaseBuilder
 	#
 	# One of the following must be provided:
 	# dev: [string] block device we operate on
-	# outfile: [String] save block device as vmdk to this file
+	# outfile: [string] save block device as vmdk to this file
+	# use_system_grub_tools: [bool] whether to download grub tools or use existing
 	#
-	def initialize(image_path, playout_path, outfile:nil, dev: nil)
+	def initialize(image_path, playout_path,
+			outfile: nil,
+			dev:     nil,
+			use_system_grub_tools: false)
+
 		@tempfile = nil
 
 		raise ArgumentError, "Missing image file" unless File.exists?(image_path)
@@ -52,6 +57,7 @@ class DiskBuilder < BaseBuilder
 			raise ArgumentError, "No output file OR device specified!"
 		end
 
+		@use_systemwide_grub_tools = use_system_grub_tools
 	end
 
 	##
@@ -472,7 +478,7 @@ class DiskBuilder < BaseBuilder
 		lines = [
 			"set default=0",
 			"set gfxpayload=1024x768x24",
-			"set timeout=15",
+			"set timeout=5",
 		]
 
 		self.all_os_partitions.each { |os_part|
