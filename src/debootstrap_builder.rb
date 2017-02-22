@@ -96,7 +96,6 @@ class DebootstrapBuilder < BaseBuilder
 			run_debootstrap(tempdir)
 			remove_dummy_fstab(tempdir)
 			add_apt_sources(tempdir)
-			add_admin_user(tempdir)
 			add_eth0_interface(tempdir)
 			overlay_files(tempdir)
 			customize_rootfs(tempdir)

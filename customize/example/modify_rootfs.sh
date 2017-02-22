@@ -4,6 +4,15 @@ function log() {
   echo "[CHROOT] $*"
 }
 
+function add_admin_user() {
+  useradd \
+  --password '$1$ABCDEFGH$hGGndps75hhROKqu/zh9q1' \
+  --shell /bin/bash \
+  --create-home \
+  --groups sudo \
+  admin
+}
+
 function update_locales() {
   locale-gen en_US.UTF-8
   update-locale LANG=en_US.UTF-8 LC_MESSAGES=POSIX
@@ -24,6 +33,9 @@ function set_hostname() {
 #
 # main
 #
+
+log "Setting up admin user"
+add_admin_user
 
 log "Setting up locale"
 update_locales
