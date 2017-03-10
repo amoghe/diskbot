@@ -91,7 +91,7 @@ class DebootstrapBuilder < BaseBuilder
 		header("Creating basic rootfs using debootstrap")
 
 		size_mb = 1024 + (@overlay_dir ? size_of_dir(@overlay_dir) : 0)
-		self.on_mounted_tmpfs(size="#{size_mb}M") do |tempdir|
+		self.on_mounted_tmpfs(size_mb) do |tempdir|
 			add_dummy_fstab(tempdir)
 			run_debootstrap(tempdir)
 			remove_dummy_fstab(tempdir)

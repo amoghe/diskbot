@@ -91,35 +91,64 @@ class BaseBuilder < PrettyPrinter
 		true
 	end
 
-	def on_mounted_tmpfs(size='1G', &block)
+	##
+	# Invoke the specified block with a mounted tmpfs (of the given size)
+	#
+	def on_mounted_tmpfs(size_mb=1024, &block)
 		return unless block
-		size = ENV.fetch('TMPFSSIZE', size)
-		if Dir.exists?(ENV.fetch('TMPFSDIR', '/foobarbaz'))
-			self.__on_custom_tmpfs(ENV.fetch('TMPFSDIR', '/foobarbaz'), &block)
+		size_mb         = ENV.fetch('TMPFS_SIZEMB', size_mb)
+		custom_tmpfsdir = ENV.fetch('TMPFS_DIR', '/foobarbaz')
+
+		if Dir.exists?(custom_tmpfsdir)
+			notice("Using #{custom_tmpfsdir} for tmpfs (ASSUMING it is large enough)")
+			self.__on_custom_tmpfs(custom_tmpfsdir, &block)
 		else
-			self.__on_tmpfs(size, &block)
+			notice("Mounting a tmpfs (size: #{size_mb}M)")
+			self.__on_tmpfs(size_mb.to_i, &block)
 		end
 	end
 
+	# :silent:
+	# Assume dir is a tmpfs dir (we don't really care) and invoke block on it
 	def __on_custom_tmpfs(dir, &block)
-		# We're already on a tmpfs, so no need to mount tmpfs on a
-		# temp dir, just use the dir instead.
-		notice("Using #{dir} for tmpfs")
 		block.call(dir) if block
 	ensure
-		# clean up before we return
 		execute!("rm -rf #{dir}/*", true)
 	end
 
-	def __on_tmpfs(size='1G', &block)
+	# :silent:
+	# Mount a tmpfs of given size and invoke the block
+	def __on_tmpfs(size_mb=1024, &block)
 		Dir.mktmpdir do |tempdir|
 			begin
-				notice("Mounting tmpfs (size: #{size})")
-				# 1G should be sufficient. Our image shouldn't be larger than that ;)
-				execute!("mount -t tmpfs -o size=#{size} debootstrap-tmpfs #{tempdir}",	true)
+				cmd = "mount -t tmpfs -o size=#{size_mb}M debootstrap-tmpfs #{tempdir}"
+				execute!(cmd, true)
 				yield tempdir if block_given?
 			ensure
 				execute!("umount #{tempdir}", true)
+			end
+		end
+	end
+
+	##
+	# Create a loopback disk and provide it to the specified block.
+	# This creates a loopback disk backed by a file on a tmpfs (see funcs that
+	# provide the tmpfs above). This means that TMPFSDIR and TMPFSSIZE are
+	# honored and the user can control them.
+	#
+	def with_sized_loopback_disk(disk_size_mb, &block)
+		on_mounted_tmpfs(disk_size_mb) do |dir|
+			begin
+				tempfile = dir + '/loopdisk'
+				execute!("fallocate -l #{disk_size_mb}MiB #{tempfile}", false)
+				output, _, stat = Open3.capture3("sudo losetup --find")
+				raise RuntimeError, 'Failed to find loop device' unless stat.success?
+				execute!("losetup #{output.strip} #{tempfile}")
+				dev = output.strip
+				block.call(dev) if block
+			ensure
+				execute!("losetup -d #{dev}") if dev && dev.length > 0
+				execute!("rm -f #{tempfile}", false) if tempfile && tempfile.length > 0
 			end
 		end
 	end

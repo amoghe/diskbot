@@ -255,17 +255,12 @@ class DiskBuilder < BaseBuilder
 	end
 
 
-	##
-	# Execute the specified block having setup a loopback device as @dev
-	#
-	def with_loopback_disk
+	def with_loopback_disk(&block)
 		notice("Creating disk file and loopback device")
-		self.create_loopback_disk
-		yield if block_given?
-	ensure
-		notice("Deleting loop disk (and its backing file)")
-		self.delete_loopback_disk
-		notice("Done " + ($!.nil? ? "(success)" : "(aborted due to errors)"))
+		with_sized_loopback_disk(total_disk_size) do |dev|
+			@dev = dev
+			block.call if block
+		end
 	end
 
 	##
@@ -347,35 +342,10 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	# Create the loopback disk device on which we'll first install the image
-	#
-	def create_loopback_disk
-		@tempfile = "/tmp/tempdisk_#{Time.now.to_i}"
-		execute!("fallocate -l #{total_disk_size}MiB #{@tempfile}", false)
-
-		output, _, stat = Open3.capture3("sudo losetup --find")
-		raise RuntimeError, 'Failed to find loop device' unless stat.success?
-
-		execute!("losetup #{output.strip} #{@tempfile}")
-		@dev = output.strip
-
-		info("Using loop device #{@dev} backed by file #{@tempfile}")
-	end
-
-	##
-	# Delete the loopback disk device
-	#
-	def delete_loopback_disk
-		execute!("losetup -d #{@dev}") if @dev && @dev.length > 0
-		execute!("rm -f #{@tempfile}", false) if @tempfile && @tempfile.length > 0
-	end
-
-	##
 	# Configure grub.cfg on the partition marked as :grub_cfg. (irrespective
 	# of which disk configuration we're booting on - bios or uefi).
 	#
 	def configure_bootloader
-
 		grub_part = first_grub_cfg_partition()
 
 		# mount grub partition at some temp location, and operate on it
