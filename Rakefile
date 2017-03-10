@@ -27,10 +27,28 @@ UEFI_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
 LIVECD_ISO_FILE_PATH   = File.join(OUTPUT_DIR, LIVECD_ISO_FILE_NAME)
 
 # Helper to test if the env contains all the vars specified
-def ensure_env(vars)
-	vars.each do |var|
-		next if ENV.has_key?(var)
+def ensure_var(var)
+	if not ENV.has_key?(var)
 		puts("Please set env var: #{var}")
+		exit(1)
+	end
+end
+
+# Ensure one of the TMPFS_{DIR|SIZEMB} params are specified
+def ensure_tmpfs_params()
+	if not ENV['TMPFS_SIZEMB'] and not ENV['TMPFS_DIR']
+		puts "One of TMPFS_SIZEMB or TMPFS_DIR must be specified"
+		puts "* These are used to create a temp dir or use an existing temp dir"
+		exit(1)
+	end
+end
+
+# Helper to ensure that env contains DEVICE or one of TMPFS_{DIR|SIZEMB}
+def ensure_device_or_tmpfs_params()
+	if not ENV['DEVICE'] and not ENV['TMPFS_SIZEMB'] and not ENV['TMPFS_DIR']
+		puts "One of DEVICE or TMPFS_SIZEMB or TMPFS_DIR must be specified"
+		puts "* When DEVICE is specified, that block device is as workspace"
+		puts "* When TMPFS_{SZ|DIR} are specified, a loopback device is on a tmpfs"
 		exit(1)
 	end
 end
@@ -72,7 +90,8 @@ namespace :build do
 
 	# How to build a cache of pkgs needed for speeding up debootstrap runs.
 	file DEBOOTSTRAP_CACHE_PATH do
-		ensure_env(['CUSTOMIZE_PKGS'])
+		ensure_var('CUSTOMIZE_PKGS')
+		ensure_tmpfs_params()
 		builder = DebootstrapBuilder.new(distro,
 			DEBOOTSTRAP_CACHE_PATH,
 			customize_pkgs: ENV['CUSTOMIZE_PKGS'],
@@ -83,7 +102,11 @@ namespace :build do
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
 	file ROOTFS_TGZ_PATH => DEBOOTSTRAP_CACHE_PATH do
-	ensure_env(['CUSTOMIZE_PKGS', 'CUSTOMIZE_SCRIPT', 'OVERLAY_ROOTFS'])
+		ensure_var('CUSTOMIZE_PKGS')
+		ensure_var('CUSTOMIZE_SCRIPT')
+		ensure_var('OVERLAY_ROOTFS')
+		ensure_tmpfs_params()
+
 		builder = DebootstrapBuilder.new(distro,
 			ROOTFS_TGZ_PATH,
 			debootstrap_pkg_cache: DEBOOTSTRAP_CACHE_PATH,
@@ -96,7 +119,9 @@ namespace :build do
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file UEFI_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
-		ensure_env(['PARTITION_LAYOUT', 'DEVICE'])
+		ensure_var('PARTITION_LAYOUT')
+		ensure_device_or_tmpfs_params()
+
 		builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
 			outfile: UEFI_VMDK_FILE_PATH,
 			dev:     ENV['DEVICE'])
@@ -105,7 +130,9 @@ namespace :build do
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
 	file BIOS_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
-		ensure_env(['PARTITION_LAYOUT', 'DEVICE'])
+		ensure_var('PARTITION_LAYOUT')
+		ensure_device_or_tmpfs_params()
+
 		builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
 			outfile: BIOS_VMDK_FILE_PATH,
 			dev:     ENV['DEVICE'])
