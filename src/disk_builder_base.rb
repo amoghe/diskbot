@@ -331,9 +331,9 @@ class DiskBuilder < BaseBuilder
 	#
 	def deactivate_partitions
 		# First deactive lvm vgs that may have been setup during
-		lvm_parts = @partition_layout.select { |p| p.lvm }
-		lvm_volgs = lvm_parts.map { |vg| vg.vg_name }
-		lvm_volgs.each { |name| execute!("vgchange -an #{name}") }
+		lvm_parts = @partition_layout.select { |p| p.lvm != nil }
+		lvm_vgnames = lvm_parts.map { |p| p.lvm.vg_name }
+		lvm_vgnames.each { |name| execute!("vgchange -an #{name}") }
 		# Then run vgexport. This allows the pv to be disconnected
 		execute!("vgexport -a")
 		# Then deal with removal of normal partitions from the device
