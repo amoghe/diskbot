@@ -335,7 +335,7 @@ class DiskBuilder < BaseBuilder
 		lvm_vgnames = lvm_parts.map { |p| p.lvm.vg_name }
 		lvm_vgnames.each { |name| execute!("vgchange -an #{name}") }
 		# Then run vgexport. This allows the pv to be disconnected
-		execute!("vgexport -a")
+		lvm_vgnames.each { |name| execute!("vgexport #{name}") }
 		# Then deal with removal of normal partitions from the device
 		# else we leak /dev/loop0p{1,2,3}
 		execute!("partx -d -v #{@dev}")
