@@ -327,17 +327,28 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
-	# Deactivetes partitions (normal and lvm)
+	# Deactivates partitions (normal and lvm)
 	#
 	def deactivate_partitions
 		# First deactive lvm vgs that may have been setup during
 		lvm_parts = @partition_layout.select { |p| p.lvm != nil }
-		lvm_vgnames = lvm_parts.map { |p| p.lvm.vg_name }
-		lvm_vgnames.each { |name| execute!("vgchange -an #{name}") }
-		# Then run vgexport. This allows the pv to be disconnected
-		lvm_vgnames.each { |name| execute!("vgexport #{name}") }
-		# Then deal with removal of normal partitions from the device
-		# else we leak /dev/loop0p{1,2,3}
+		lvm_parts.each { |p|
+			p.lvm.volumes.each { |v|
+				execute!("lvchange -an #{p.lvm.vg_name}/#{v.label}")
+			}
+			execute!("vgchange -an #{p.lvm.vg_name}")
+			# Running vgexport seems to be problematic (it reimports LVs!)
+			# execute!("vgexport #{p.lvm.vg_name}")
+			# Run this if you want to be *sure* all LVs have been removed
+			# execute!("dmsetup -v remove /dev/#{p.lvm.vg_name}/* || true")
+		}
+
+		# Then deal with removal of normal partitions from the loopback device
+		# else we leak /dev/loopNp{1,2,3}
+		sleep(2) # avoid race
+		execute!("sync")
+		# Print some debugging info (in case the following call to partx fails)
+		# execute!("dmsetup info || true")
 		execute!("partx -d -v #{@dev}")
 	end
 
