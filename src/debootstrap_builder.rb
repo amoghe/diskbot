@@ -177,9 +177,9 @@ class DebootstrapBuilder < BaseBuilder
 		case @distro
 		when "ubuntu"
 			lines = [
-				"deb #{@archive_url} #{@flavor}          main restricted universe",
-				"deb #{@archive_url} #{@flavor}-updates  main restricted universe",
-				"deb #{@archive_url} #{@flavor}-security main restricted universe",
+				"deb #{@archive_url} #{@flavor}          main restricted",
+				"deb #{@archive_url} #{@flavor}-updates  main restricted",
+				"deb #{@archive_url} #{@flavor}-security main restricted",
 			].join("\n")
 		when "debian"
 			lines = [
