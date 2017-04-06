@@ -35,6 +35,7 @@ class DebootstrapBuilder < BaseBuilder
 		customize_pkgs:        nil,
 		customize_rootfs:      nil,
 		overlay_rootfs:        nil,
+		apt_mirror_url:        nil,
 		verbose:               false)
 
 		@distro  = distro
@@ -49,6 +50,10 @@ class DebootstrapBuilder < BaseBuilder
 			@archive_url = DEBIAN_APT_ARCHIVE_URL
 		else
 			raise ArgumentError, "Invalid distro specified"
+		end
+
+		if apt_mirror_url
+			@archive_url = apt_mirror_url
 		end
 
 		@customize_script = nil

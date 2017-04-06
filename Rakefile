@@ -95,6 +95,7 @@ namespace :build do
 		builder = DebootstrapBuilder.new(distro,
 			DEBOOTSTRAP_CACHE_PATH,
 			customize_pkgs: ENV['CUSTOMIZE_PKGS'],
+			apt_mirror_url: ENV['APT_MIRROR_URL'],
 			verbose: verbose)
 		builder.create_debootstrap_packages_tarball()
 	end
