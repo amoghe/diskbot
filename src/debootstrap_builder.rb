@@ -188,7 +188,7 @@ class DebootstrapBuilder < BaseBuilder
 				"deb http://security.debian.org/  #{@flavor}/updates main contrib",
 			].join("\n")
 		else
-			raise ArgumentError, "Unknown flavor"
+			raise ArgumentError, "Unknown distribution"
 		end
 
 		execute!("echo \"#{lines}\" | sudo tee #{tempdir}/etc/apt/sources.list")

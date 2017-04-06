@@ -114,6 +114,7 @@ namespace :build do
 			customize_pkgs:        ENV['CUSTOMIZE_PKGS'],
 			customize_rootfs:      ENV['CUSTOMIZE_SCRIPT'],
 			overlay_rootfs:        ENV['OVERLAY_ROOTFS'],
+			apt_mirror_url:        ENV['APT_MIRROR_URL'],
 			verbose: verbose)
 		builder.create_debootstrap_rootfs()
 	end
