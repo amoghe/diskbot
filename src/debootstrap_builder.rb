@@ -233,9 +233,12 @@ class DebootstrapBuilder < BaseBuilder
 	def customize_rootfs(tempdir)
 		return unless @customize_script
 		notice('Running customization script in the rootfs (chroot)')
+		execute!("mount -o bind /proc #{tempdir}/proc")
 		execute!("cp #{@customize_script} #{tempdir}/tmp/customize.sh")
 		execute!("chmod a+x #{tempdir}/tmp/customize.sh")
 		execute!("chroot #{tempdir} /tmp/customize.sh")
+	ensure
+		execute!("umount #{tempdir}/proc")
 	end
 
 	##
