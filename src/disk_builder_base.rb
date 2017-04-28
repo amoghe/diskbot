@@ -264,6 +264,21 @@ class DiskBuilder < BaseBuilder
 	end
 
 	##
+	# Creates the specified filesystem (fstype) on the specified file/disk (where)
+	#
+	def create_filesystem(fstype, where, label)
+		if fstype == 'fat32'
+			execute!("mkfs.fat -F -F32 -n#{label} #{where}")
+		elsif fstype == 'fat16'
+			execute!("mkfs.fat -F -F16 -n#{label} #{where}")
+		elsif fstype == 'swap'
+			execute!("mkswap -L #{label} #{where}")
+		else
+			execute!("mkfs.#{fstype} -L \"#{label}\" #{where}")
+		end
+	end
+
+	##
 	# Expects the hardware specific derivative class to implement this.
 	#
 	def create_partitions
@@ -291,12 +306,8 @@ class DiskBuilder < BaseBuilder
 
 			if not part.fs
 				warn("No filesystem specified for #{part.label}. Skipping FS")
-			elsif part.fs == 'fat32'
-				execute!("mkfs.fat -F -F32 -n#{part.label} #{label_path}")
-			elsif part.fs == 'fat16'
-				execute!("mkfs.fat -F -F16 -n#{part.label} #{label_path}")
 			else
-				execute!("mkfs.#{part.fs} -L \"#{part.label}\" #{label_path}")
+				create_filesystem(part.fs, label_path, part.label)
 			end
 
 			if part.lvm
@@ -322,7 +333,7 @@ class DiskBuilder < BaseBuilder
 			info("Creating #{vol.label} volume")
 			execute!("lvcreate -y --name #{vol.label} --size #{vol.size_mb}MiB #{part.lvm.vg_name}")
 			next if not vol.fs
-			execute!("mkfs.#{vol.fs} -L \"#{vol.label}\" /dev/#{part.lvm.vg_name}/#{vol.label}")
+			create_filesystem(vol.fs, "/dev/#{part.lvm.vg_name}/#{vol.label}", vol.label)
 		end
 	end
 

@@ -12,6 +12,12 @@
           "size_mb"  : 768,
           "flags"    : {},
           "os"       : true
+        },
+        {
+          "label"    : "SWAP",
+          "fs"       : "swap",
+          "size_mb"  : 32,
+          "flags"    : { "swap": true }
         }
       ]
     }
