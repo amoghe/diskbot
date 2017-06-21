@@ -121,7 +121,9 @@ class IsoBuilder < BaseBuilder
     execute!(["grub-mkrescue",
       "-d tools/usr/lib/grub/#{grub_arch}",
       "-o #{@output_path}",
-      "./iso",].join(" "))
+      "./iso",
+      "-- -iso-level 3", # in case the squashfs file is >4GiB
+    ].join(" "))
 
   ensure
     info("deleting (temporary) work dirs")
