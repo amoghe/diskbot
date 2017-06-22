@@ -256,3 +256,13 @@ namespace :clean do
 	end
 
 end
+
+# Allow folks to include customizations to this workflow without having to
+# maintain their own fork of this repo. For example,
+# - you could take any of the rake tasks above and instantiate the worker
+#   objects with different params to get different behavior
+# - inherit from any of the classes under src/ and override some methods to
+#   get different behavior (e.g. different text in grub_cfg_contents)
+if Dir.exists?('./tasks')
+	Dir.glob('tasks/*.rake').each { |r| import r }
+end
