@@ -15,13 +15,13 @@ OUTPUT_DIR = 'output'
 Dir.mkdir(OUTPUT_DIR) rescue Errno::EEXIST
 # File names
 DEBOOTSTRAP_CACHE_NAME = "debootstrap_cache.tgz"
-ROOTFS_TGZ_NAME        = "rootfs.tgz"
+ROOTFS_TAR_NAME        = "rootfs.tar"
 BIOS_VMDK_FILE_NAME    = "bios_disk.vmdk"
 UEFI_VMDK_FILE_NAME    = "uefi_disk.vmdk"
 LIVECD_ISO_FILE_NAME   = "live-cd.iso"
 # File paths (in the output dir)
 DEBOOTSTRAP_CACHE_PATH = File.join(OUTPUT_DIR, DEBOOTSTRAP_CACHE_NAME)
-ROOTFS_TGZ_PATH        = File.join(OUTPUT_DIR, ROOTFS_TGZ_NAME)
+ROOTFS_TAR_PATH        = File.join(OUTPUT_DIR, ROOTFS_TAR_NAME)
 BIOS_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, BIOS_VMDK_FILE_NAME)
 UEFI_VMDK_FILE_PATH    = File.join(OUTPUT_DIR, UEFI_VMDK_FILE_NAME)
 LIVECD_ISO_FILE_PATH   = File.join(OUTPUT_DIR, LIVECD_ISO_FILE_NAME)
@@ -102,14 +102,14 @@ namespace :build do
 
 	# How to build a basic rootfs using debootstrap.
 	# This relies on a tarball of cached packages that is usable by debootstrap.
-	file ROOTFS_TGZ_PATH => DEBOOTSTRAP_CACHE_PATH do
+	file ROOTFS_TAR_PATH => DEBOOTSTRAP_CACHE_PATH do
 		ensure_var('CUSTOMIZE_PKGS')
 		ensure_var('CUSTOMIZE_SCRIPT')
 		ensure_var('OVERLAY_ROOTFS')
 		ensure_tmpfs_params()
 
 		builder = DebootstrapBuilder.new(distro,
-			ROOTFS_TGZ_PATH,
+			ROOTFS_TAR_PATH,
 			debootstrap_pkg_cache: DEBOOTSTRAP_CACHE_PATH,
 			customize_pkgs:        ENV['CUSTOMIZE_PKGS'],
 			customize_rootfs:      ENV['CUSTOMIZE_SCRIPT'],
@@ -120,22 +120,22 @@ namespace :build do
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file UEFI_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
+	file UEFI_VMDK_FILE_PATH => ROOTFS_TAR_PATH do
 		ensure_var('PARTITION_LAYOUT')
 		ensure_device_or_tmpfs_params()
 
-		builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
+		builder = UefiDiskBuilder.new(ROOTFS_TAR_PATH, ENV['PARTITION_LAYOUT'],
 			outfile: UEFI_VMDK_FILE_PATH,
 			dev:     ENV['DEVICE'])
 		builder.build()
 	end
 
 	# How to build a disk (vmdk) given a rootfs (created by debootstrap).
-	file BIOS_VMDK_FILE_PATH => ROOTFS_TGZ_PATH do
+	file BIOS_VMDK_FILE_PATH => ROOTFS_TAR_PATH do
 		ensure_var('PARTITION_LAYOUT')
 		ensure_device_or_tmpfs_params()
 
-		builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH, ENV['PARTITION_LAYOUT'],
+		builder = BiosDiskBuilder.new(ROOTFS_TAR_PATH, ENV['PARTITION_LAYOUT'],
 			outfile: BIOS_VMDK_FILE_PATH,
 			dev:     ENV['DEVICE'])
 		builder.build()
@@ -151,11 +151,11 @@ namespace :build do
 	# Build a basic rootfs using debootstrap.
 	#
 	desc 'Build basic rootfs using debootstrap (supports some env vars)'
-	task :rootfs => ROOTFS_TGZ_PATH
+	task :rootfs => ROOTFS_TAR_PATH
 
 	desc 'Build (live cd) ISO using the debootstrap rootfs'
-	task :iso => ROOTFS_TGZ_PATH do
-			IsoBuilder.new(ROOTFS_TGZ_PATH, LIVECD_ISO_FILE_PATH).build
+	task :iso => ROOTFS_TAR_PATH do
+			IsoBuilder.new(ROOTFS_TAR_PATH, LIVECD_ISO_FILE_PATH).build
 	end
 
 	#
@@ -176,7 +176,7 @@ namespace :build do
 		desc 'Build a bootable UEFI device using the debootstrap rootfs'
 		task :uefi do
 			ensure_env(['DEVICE'])
-			builder = UefiDiskBuilder.new(ROOTFS_TGZ_PATH,
+			builder = UefiDiskBuilder.new(ROOTFS_TAR_PATH,
 				ENV['PARTITION_LAYOUT'],
 				dev: ENV['DEVICE'])
 			builder.build()
@@ -185,7 +185,7 @@ namespace :build do
 		desc 'Build a bootable BIOS device using the debootstrap rootfs'
 		task :bios do
 			ensure_env(['DEVICE'])
-			builder = BiosDiskBuilder.new(ROOTFS_TGZ_PATH,
+			builder = BiosDiskBuilder.new(ROOTFS_TAR_PATH,
 				ENV['PARTITION_LAYOUT'],
 				dev: ENV['DEVICE'])
 			builder.build()
@@ -206,7 +206,7 @@ namespace :clean do
 
 	desc "Clean the debootstrap rootfs file"
 	task :rootfs do
-		sh("rm -f #{ROOTFS_TGZ_PATH}")
+		sh("rm -f #{ROOTFS_TAR_PATH}")
 	end
 
 	desc "Clean the ISO file"
