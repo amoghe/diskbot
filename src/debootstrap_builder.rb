@@ -7,6 +7,15 @@ require_relative 'base_builder'
 
 class DebootstrapBuilder < BaseBuilder
 
+	VALID_TAR_COMPRESSORS = {
+		'gzip':  'gz'  ,
+		'bzip2': 'bz2' ,
+		'xz':    'xz'  ,
+		'lzip':  'lzip',
+		'lzop':  'lzop',
+		'lzma':  'lzma',
+	}
+
 	# Additional pacakge we'd like in the rootfs so that its usable
 	ADDON_PKGS = [
 		'isc-dhcp-client'    , # dhcp
@@ -36,6 +45,7 @@ class DebootstrapBuilder < BaseBuilder
 		customize_rootfs:      nil,
 		overlay_rootfs:        nil,
 		apt_mirror_url:        nil,
+		compressor:            nil,
 		verbose:               false)
 
 		@distro  = distro
@@ -85,6 +95,11 @@ class DebootstrapBuilder < BaseBuilder
 			@overlay_dir = overlay_rootfs
 		end
 
+		if !compressor.nil? and !VALID_TAR_COMPRESSORS.keys.include?(compressor)
+			raise ArgumentError, "Invalid compressor specified"
+		end
+
+		@compressor = compressor
 		@outfile = outfile
 	end
 
@@ -262,13 +277,12 @@ class DebootstrapBuilder < BaseBuilder
 		notice('Cleaning up packages in the rootfs')
 		execute!("chroot #{tempdir} apt-get clean")
 		notice('Packaging rootfs')
+		ext = (@compressor ? ".#{VALID_TAR_COMPRESSORS[@compressor]}" : '')
 		execute!(['tar ',
 			'--create',
-			'--gzip',
-			"--file=#{@outfile}",
-			# TODO: preserve perms, else whoever uses the image will have to twidle the perms again.
-			#'--owner=0',
-			#'--group=0',
+			@compressor ? "--#{compressor}" : '',
+			"--file=#{@outfile + ext}",
+			# preserve perms, else whoever uses the image will have to twidle the perms again.
 			'--preserve-permissions',
 			'--numeric-owner',
 			"-C #{tempdir} ."

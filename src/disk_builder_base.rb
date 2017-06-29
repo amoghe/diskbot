@@ -401,6 +401,19 @@ class DiskBuilder < BaseBuilder
 			raise RuntimeError, 'Invalid image specified'
 		end
 
+		decompressor = ''
+		if @image_tarball_path.end_with?('.tgz')
+			decompressor = '--gunzip'
+		elsif @image_tarball_path.end_with?('.gz')
+			decompressor = '--gunzip'
+		elsif @image_tarball_path.end_with?('bz2')
+			decompressor = '--bzip2'
+		elsif @image_tarball_path.end_with?('lzma')
+			decompessor = '--lzma'
+		elsif @image_tarball_path.end_with?('lzip')
+			decompressor = '--lzip'
+		end
+
 		# We only install to the first OS partition, for now (TODO)
 		os_part = first_os_partition()
 
@@ -411,7 +424,7 @@ class DiskBuilder < BaseBuilder
 				execute!("mount #{os_part_path} #{mountdir}")
 
 				execute!(['tar ',
-					'--gunzip',
+					decompressor,
 					'--extract',
 					"--file=#{@image_tarball_path}",
 					# Perms from the image should be retained.
