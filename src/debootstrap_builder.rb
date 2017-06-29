@@ -8,12 +8,12 @@ require_relative 'base_builder'
 class DebootstrapBuilder < BaseBuilder
 
 	VALID_TAR_COMPRESSORS = {
-		'gzip':  'gz'  ,
-		'bzip2': 'bz2' ,
-		'xz':    'xz'  ,
-		'lzip':  'lzip',
-		'lzop':  'lzop',
-		'lzma':  'lzma',
+		'gzip'  => 'gz'  ,
+		'bzip2' => 'bz2' ,
+		'xz'    => 'xz'  ,
+		'lzip'  => 'lzip',
+		'lzop'  => 'lzop',
+		'lzma'  => 'lzma',
 	}
 
 	# Additional pacakge we'd like in the rootfs so that its usable
@@ -280,7 +280,7 @@ class DebootstrapBuilder < BaseBuilder
 		ext = (@compressor ? ".#{VALID_TAR_COMPRESSORS[@compressor]}" : '')
 		execute!(['tar ',
 			'--create',
-			@compressor ? "--#{compressor}" : '',
+			@compressor ? "--#{@compressor}" : '',
 			"--file=#{@outfile + ext}",
 			# preserve perms, else whoever uses the image will have to twidle the perms again.
 			'--preserve-permissions',
@@ -288,6 +288,8 @@ class DebootstrapBuilder < BaseBuilder
 			"-C #{tempdir} ."
 		].join(' '),
 		true)
+		# Ensure resulting file is owned by the caller
+		execute!(["chown", `whoami`.strip, @outfile + ext].join(' '), true)
 	end
 
 	##
