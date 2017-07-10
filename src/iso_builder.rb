@@ -14,9 +14,9 @@ class IsoBuilder < BaseBuilder
     @bootmode   = "bios" # TODO: make this configurable
 
     @decompress_switch = ''
-    if rootfs_path.end_with?('gz'):
+    if rootfs_path.end_with?('gz')
       @decompress_switch = '-z'
-    elsif rootfs_path.end_with?('bz2'):
+    elsif rootfs_path.end_with?('bz2')
       @decompress_switch = '-j'
     end
    end
