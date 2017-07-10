@@ -12,6 +12,13 @@ class IsoBuilder < BaseBuilder
 
     @bootloader = "grub" # TODO: make this configurable
     @bootmode   = "bios" # TODO: make this configurable
+
+    @decompress_switch = ''
+    if rootfs_path.end_with?('gz'):
+      @decompress_switch = '-z'
+    elsif rootfs_path.end_with?('bz2'):
+      @decompress_switch = '-j'
+    end
    end
 
   def build
@@ -37,7 +44,7 @@ class IsoBuilder < BaseBuilder
     work_dirs.each { |dir| execute!("mkdir #{dir}", false) }
 
     info("Unpacking the rootfs to prepare it for live booting")
-    execute!("tar -xzf #{@rootfs_path} -C unpacked")
+    execute!("tar #{@decompress_switch} -xf #{@rootfs_path} -C unpacked")
 
     info("Installing live-boot pkgs")
     execute!("chroot unpacked apt-get --yes install live-boot")
