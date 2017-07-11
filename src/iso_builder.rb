@@ -99,7 +99,7 @@ class IsoBuilder < BaseBuilder
     work_dirs.each { |dir| execute!("mkdir -p #{dir}", false) }
 
     info("Unpacking the rootfs to prepare it for live booting")
-    execute!("tar -xzf #{@rootfs_path} -C unpacked")
+    execute!("tar #{@decompress_switch} -xf #{@rootfs_path} -C unpacked")
 
     info("Installing live-boot pkgs")
     execute!("chroot unpacked apt-get update")
