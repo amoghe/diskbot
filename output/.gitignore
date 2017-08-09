@@ -1,5 +1,7 @@
 # Ignore (intermediate) tarballs
 *.tgz
+*.tar
+*.tar.gz
 
 # Ignore vmdk
 *.vmdk
