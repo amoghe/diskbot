@@ -124,17 +124,30 @@ class DiskBuilder < BaseBuilder
 			raise RuntimeError, 'Multiple grub_cfg partitions in layout'
 		end
 
-		lvm_parts = @partition_layout.select { |p| p.lvm }
+		if @partition_layout.select { |p| p.lvm }.count == 0
+			validate_partition_layout_non_lvm
+		else
+			validate_partition_layout_lvm
+		end
+	end
 
-		# Check for at least one OS partition when no LVM
-		if lvm_parts.count == 0
-			if not @partition_layout.find { |p| p.os }
-				raise RuntimeError, 'Missing OS partition (non LVM)'
-			end
-			return
+	##
+	# Validate non LVM partition layout
+	#
+	def validate_partition_layout_non_lvm
+		if not @partition_layout.find { |p| p.os }
+			raise RuntimeError, 'Missing OS partition (non LVM)'
 		end
 
-		# --- What follows are LVM specific checks ---
+		return
+	end
+
+	##
+	# partition layout validation for lvm partition
+	#
+	def validate_partition_layout_lvm
+
+		lvm_parts = @partition_layout.select { |p| p.lvm }
 
 		# Check for missing VG names
 		if lvm_parts.select { |l| l.lvm.vg_name.empty? }.count != 0
@@ -151,7 +164,7 @@ class DiskBuilder < BaseBuilder
 		lvm_parts.each do |p|
 			total_mb = 0
 			p.lvm.volumes.each { |v| total_mb += v.size_mb }
-			if total_mb > (p.size_mb + 0.01*p.size_mb) # addl 1% for lvm metadata
+			if total_mb > (p.size_mb + 4) # assuming 1 extra PE (of 4MiB)
 				raise RuntimeError, "VG #{p.label} has more LVs that capacity"
 			end
 		end
