@@ -1,0 +1,16 @@
+[
+  {
+    "label"    : "OS",
+    "fs"       : "ext4",
+    "size_mb"  : 768,
+    "flags"    : {},
+    "os"       : true
+  },
+  {
+    "label"    : "data",
+    "fs"       : "ext4",
+    "size_mb"  : 128,
+    "flags"    : {},
+    "os"       : true
+  }
+]

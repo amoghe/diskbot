@@ -5,5 +5,10 @@
     "size_mb"  : 768,
     "flags"    : {},
     "os"       : true
+  },
+  {
+    "label"    : "data",
+    "fs"       : "ext4",
+    "flags"    : {}
   }
 ]

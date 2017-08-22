@@ -1,7 +1,7 @@
 [
   {
     "label"    : "LVM_CONT",
-    "size_mb"  : 1024,
+    "size_mb"  : 896,
     "flags"    : { "lvm": "on" },
     "lvm"      : {
       "vg_name": "diskbot_vg",

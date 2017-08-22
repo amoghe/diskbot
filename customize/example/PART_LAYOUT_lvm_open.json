@@ -1,0 +1,34 @@
+[
+  {
+    "label"    : "deadspace",
+    "size_mb"  : 64
+  },
+  {
+    "label"    : "LVM_CONT",
+    "size_mb"  : "",
+    "flags"    : { "lvm": "on" },
+    "lvm"      : {
+      "vg_name": "diskbot_vg",
+      "volumes": [
+        {
+          "label"    : "OS",
+          "fs"       : "ext4",
+          "size_mb"  : 768,
+          "flags"    : {},
+          "os"       : true
+        },
+        {
+          "label"    : "SWAP",
+          "fs"       : "swap",
+          "size_mb"  : 32,
+          "flags"    : { "swap": true }
+        },
+        {
+          "label"    : "data",
+          "fs"       : "ext4",
+          "size_mb"  : ""
+        }
+      ]
+    }
+  }
+]

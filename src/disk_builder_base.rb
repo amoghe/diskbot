@@ -100,9 +100,12 @@ class DiskBuilder < BaseBuilder
 		raise RuntimeError, 'Unable determine dev size' unless stat.success?
 
 		dev_mib = output.strip.to_i / (1024*1024) # space on device (MiB)
-		tot_mib = FIRST_PARTITION_OFFSET # total needed space (MiB)
-
-		@partition_layout.each { |p| tot_mib += p.size_mb }
+		begin
+			tot_mib = total_disk_size()
+		rescue RuntimeError => e
+			warn("Performing lax disk size check (#{e})")
+			tot_mib = minimum_disk_size()
+		end
 
 		if tot_mib >= dev_mib
 			warn("Insufficient space! need MiB: #{tot_mib}, device MiB: #{dev_mib}")
@@ -139,6 +142,10 @@ class DiskBuilder < BaseBuilder
 			raise RuntimeError, 'Missing OS partition (non LVM)'
 		end
 
+		if @partition_layout.count { |p| !p.size_mb.is_a?(Integer) } > 1
+			raise RuntimeError, 'Only 1 partition can have unspecified size (100%FREE)'
+		end
+
 		return
 	end
 
@@ -160,12 +167,26 @@ class DiskBuilder < BaseBuilder
 			raise RuntimeError, 'Missing OS partition in layout (LVM)'
 		end
 
-		# Check if each VG has enough size to accomodate its LVs (volumes)
+		# Sanity check each VG
 		lvm_parts.each do |p|
+			# Can't check VG that is on an "open ended" partition
+			if not p.size_mb.is_a?(Integer)
+				info("Skipping VG size validation for #{p.lvm.vg_name}")
+				next
+			end
+
+			# Check if VG has more than one LV which intends to be 100%FREE
+			if p.lvm.volumes.count { |v| !v.size_mb.is_a?(Integer) } > 1
+				raise RuntimeError, "Only 1 LV can have unspecified size (100%FREE)"
+			end
+
+			# Check if VG has enough size to accomodate its LVs
 			total_mb = 0
-			p.lvm.volumes.each { |v| total_mb += v.size_mb }
-			if total_mb > (p.size_mb + 4) # assuming 1 extra PE (of 4MiB)
-				raise RuntimeError, "VG #{p.label} has more LVs that capacity"
+			p.lvm.volumes \
+				.select { |v| v.size_mb.is_a?(Integer) } \
+				.each   { |v| total_mb += v.size_mb }
+			if (total_mb + 4) > p.size_mb # assuming 1 extra PE (of 4MiB)
+				raise RuntimeError, "VG #{p.label} has more LVs (size) than capacity"
 			end
 		end
 
@@ -187,9 +208,30 @@ class DiskBuilder < BaseBuilder
 	# + 1MB for end since parted uses END as inclusive
 	#
 	def total_disk_size
+		if @partition_layout.find { |p| !p.size_mb.is_a?(Integer) }
+			raise RuntimeError, "Some partition sizes unspecified, cannot infer "\
+						"total size of all partitions"
+		end
+
 		@partition_layout.inject(0) { |memo, elem| memo + elem.size_mb } \
 			+ FIRST_PARTITION_OFFSET \
 			+ 1
+	end
+
+	##
+	# Returns mimimum size of disk needed to hold all the partitions specified
+	# (open ended partitions are deemed to be at least 4MiB)
+	#
+	def minimum_disk_size
+		@partition_layout.inject(0) { |memo, elem|
+			if elem.size_mb.is_a?(Integer)
+				memo + elem.size_mb
+			else
+				memo + 1 # open ended partitions need to be at least 4MiB (arbitrary)
+			end
+		} \
+		+ FIRST_PARTITION_OFFSET \
+		+ 1
 	end
 
 	##
@@ -301,8 +343,17 @@ class DiskBuilder < BaseBuilder
 		start_size = FIRST_PARTITION_OFFSET
 		end_size   = FIRST_PARTITION_OFFSET
 
+		unspec_part = nil
+
 		# Create the partitions
 		@partition_layout.each_with_index do |part, index|
+
+			# Deal with any "open ended" partitions last
+			if not part.size_mb.is_a?(Integer)
+				unspec_part = part
+				next
+			end
+
 			start_size = end_size
 			end_size  += part.size_mb
 
@@ -329,8 +380,31 @@ class DiskBuilder < BaseBuilder
 			end
 
 		end
+
+		# Deal with any "open ended" partitions (that have an unspecified size_mb)
+		if unspec_part
+			part = unspec_part
+			info("Creating partition #{part.label} (#{part.fs}, 100% remaining)")
+			execute!("parted #{@dev} mkpart #{part.label} #{part.fs} #{end_size}MiB 100%")
+
+			(part.flags || {}).each_pair { |k, v|
+				info("Setting partition flag #{k} to #{v}")
+				execute!("parted #{@dev} set #{@partition_layout.length} #{k} #{v}")
+			}
+
+			label_path = "/dev/disk/by-partlabel/#{part.label}"
+			self.wait_for_device(label_path)
+			create_filesystem(part.fs, label_path, part.label) if part.fs
+
+			if part.lvm
+				notice("Setting up LVM on #{part.label}")
+				setup_lvm_on_partition(part)
+			end
+		end
+
 		nil
 	end
+
 
 	##
 	# Setup LVM on this partition (single PV, VG - multiple LVs)
@@ -341,13 +415,31 @@ class DiskBuilder < BaseBuilder
 		execute!("pvcreate -y #{pvol}")
 		execute!("vgcreate -y #{part.lvm.vg_name} #{pvol}")
 
+		# any "open ended" volumes (no size specified), we deal with last
+		unspec_vol = nil
+
 		notice("Creating LVM partitions")
 		part.lvm.volumes.each do |vol|
+			if not vol.size_mb.is_a?(Integer)
+				unspec_vol = vol
+				next
+			end
+
 			info("Creating #{vol.label} volume")
 			execute!("lvcreate -y --name #{vol.label} --size #{vol.size_mb}MiB #{part.lvm.vg_name}")
 			next if not vol.fs
 			create_filesystem(vol.fs, "/dev/#{part.lvm.vg_name}/#{vol.label}", vol.label)
 		end
+
+		if unspec_vol
+			vol = unspec_vol
+			info("Creating #{vol.label} volume")
+			execute!("lvcreate -y --name #{vol.label} -l 100%FREE #{part.lvm.vg_name}")
+			if not vol.fs
+				create_filesystem(vol.fs, "/dev/#{part.lvm.vg_name}/#{vol.label}", vol.label)
+			end
+		end
+
 	end
 
 	##
