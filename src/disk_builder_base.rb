@@ -435,7 +435,7 @@ class DiskBuilder < BaseBuilder
 			vol = unspec_vol
 			info("Creating #{vol.label} volume")
 			execute!("lvcreate -y --name #{vol.label} -l 100%FREE #{part.lvm.vg_name}")
-			if not vol.fs
+			if vol.fs
 				create_filesystem(vol.fs, "/dev/#{part.lvm.vg_name}/#{vol.label}", vol.label)
 			end
 		end
