@@ -3,10 +3,10 @@ require_relative 'base_builder'
 require 'tmpdir'
 
 class IsoBuilder < BaseBuilder
-
   def initialize(rootfs_path, output_path)
     raise ArgumentError, 'Missing rootfs' unless File.exists?(rootfs_path)
     raise ArgumentError, 'Bad output file' unless output_path
+
     @rootfs_path = rootfs_path
     @output_path = output_path
 
@@ -19,7 +19,7 @@ class IsoBuilder < BaseBuilder
     elsif rootfs_path.end_with?('bz2')
       @decompress_switch = '-j'
     end
-   end
+  end
 
   def build
     case @bootloader
@@ -40,7 +40,7 @@ class IsoBuilder < BaseBuilder
   #
   def build_isolinux()
     info("Ensure (temporary) workspace dirs exist")
-    work_dirs = [ 'unpacked', 'iso', 'iso/isolinux', 'iso/live', 'tools' ]
+    work_dirs = ['unpacked', 'iso', 'iso/isolinux', 'iso/live', 'tools']
     work_dirs.each { |dir| execute!("mkdir #{dir}", false) }
 
     info("Unpacking the rootfs to prepare it for live booting")
@@ -83,7 +83,6 @@ class IsoBuilder < BaseBuilder
       "-boot-info-table "\
       "-o #{@output_path} "\
       "iso")
-
   ensure
     info("deleting (temporary) work dirs")
     work_dirs.each { |d| execute!("rm -rf #{d}") }
@@ -95,7 +94,7 @@ class IsoBuilder < BaseBuilder
   #
   def build_grub
     info("Ensure (temporary) workspace dirs exist")
-    work_dirs = [ 'unpacked', 'iso', 'iso/boot/grub', 'iso/live', 'tools' ]
+    work_dirs = ['unpacked', 'iso', 'iso/boot/grub', 'iso/live', 'tools']
     work_dirs.each { |dir| execute!("mkdir -p #{dir}", false) }
 
     info("Unpacking the rootfs to prepare it for live booting")
@@ -125,13 +124,13 @@ class IsoBuilder < BaseBuilder
     info("Using grub arch: #{grub_arch}")
 
     info("Creating ISO (using grub-mkrescue)")
-    execute!(["grub-mkrescue",
+    execute!([
+      "grub-mkrescue",
       "-d tools/usr/lib/grub/#{grub_arch}",
       "-o #{@output_path}",
       "./iso",
       "-- -iso-level 3", # in case the squashfs file is >4GiB
     ].join(" "))
-
   ensure
     info("deleting (temporary) work dirs")
     work_dirs.each { |d| execute!("rm -rf #{d}") }
@@ -149,11 +148,11 @@ class IsoBuilder < BaseBuilder
 
   def download_unpack_grub_tools(dir)
     grubpkgname = (@bootmode == "bios") ? "grub-pc-bin" : "grub-efi-amd64-bin"
-		execute!("mkdir -p #{dir}", false)
-		execute!("cd #{dir} && apt-get download grub-common", false)
-		execute!("cd #{dir} && apt-get download #{grubpkgname}", false)
-		Dir.glob("#{dir}/*.deb") { |pkg| execute!("dpkg-deb --extract #{pkg} #{dir}") }
-	end
+    execute!("mkdir -p #{dir}", false)
+    execute!("cd #{dir} && apt-get download grub-common", false)
+    execute!("cd #{dir} && apt-get download #{grubpkgname}", false)
+    Dir.glob("#{dir}/*.deb") { |pkg| execute!("dpkg-deb --extract #{pkg} #{dir}") }
+  end
 
   ##
   # File contents for the isolinux config file
@@ -197,5 +196,4 @@ class IsoBuilder < BaseBuilder
       "}",
     ].join("\n")
   end
-
 end
