@@ -176,6 +176,7 @@ namespace :build do
 		desc 'Build a bootable UEFI device using the debootstrap rootfs'
 		task :uefi do
 			ensure_var('DEVICE')
+			ensure_var('PARTITION_LAYOUT')
 			builder = UefiDiskBuilder.new(ROOTFS_TAR_PATH,
 				ENV['PARTITION_LAYOUT'],
 				dev: ENV['DEVICE'])
@@ -185,6 +186,7 @@ namespace :build do
 		desc 'Build a bootable BIOS device using the debootstrap rootfs'
 		task :bios do
 			ensure_var('DEVICE')
+			ensure_var('PARTITION_LAYOUT')
 			builder = BiosDiskBuilder.new(ROOTFS_TAR_PATH,
 				ENV['PARTITION_LAYOUT'],
 				dev: ENV['DEVICE'])
