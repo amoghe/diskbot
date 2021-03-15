@@ -52,7 +52,7 @@ class DebootstrapBuilder < BaseBuilder
 
     case distro
     when "ubuntu"
-      @flavor = "focal"
+      @flavor = "xenial"
       @archive_url = UBUNTU_APT_ARCHIVE_URL
     when "debian"
       @flavor = "jessie"
@@ -88,7 +88,8 @@ class DebootstrapBuilder < BaseBuilder
       else
         @customize_pkgs = c.strip.lines() # newline seperated
       end
-      @customize_pkgs.map! { |p| p.strip! }
+      @customize_pkgs.map! { |p| p.strip }
+
     end
 
     if overlay_rootfs
